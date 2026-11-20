@@ -110,6 +110,8 @@ pub struct Settings {
     /// Per-display lyric styles: monitor index → style id. Every entry opens a
     /// click-through overlay on that display with its own style.
     pub display_styles: std::collections::BTreeMap<String, String>,
+    /// Which display the control page (style picker and settings) opens on.
+    pub page_monitor: usize,
     pub color_auto_sync: bool,
     pub color_text: String,
     pub color_highlight: String,
@@ -212,6 +214,7 @@ impl Default for Settings {
             keep_awake: true,
             show_on_desktop: true,
             display_styles: std::collections::BTreeMap::new(),
+            page_monitor: 0,
             color_auto_sync: true,
             color_text: "#F5F7FF".into(),
             color_highlight: "#FF5C7A".into(),

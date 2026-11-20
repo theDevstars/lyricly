@@ -49,6 +49,10 @@ export const setDisplayIndex = (index: number): Promise<void> =>
 export const setDisplayStyle = (monitor: number, style: string | null): Promise<void> =>
   invoke('set_display_style', { monitor, style });
 
+/** Sends the control page (style picker and settings) to a display. */
+export const setPageMonitor = (index: number): Promise<void> =>
+  invoke('set_page_monitor', { index });
+
 export const setWallpaperLayer = (enabled: boolean): Promise<void> =>
   invoke('set_wallpaper_layer', { enabled });
 

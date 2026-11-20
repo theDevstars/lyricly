@@ -68,6 +68,8 @@ export interface Settings {
   ambientMonitor: number;
   /** Monitor index → style id: a display with an entry gets its own overlay. */
   displayStyles: Record<string, string>;
+  /** Which display the control page opens on. */
+  pageMonitor: number;
   ambientIdleMinutes: number;
   ambientHotkey: string;
   tapSyncHotkey: string;

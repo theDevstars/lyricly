@@ -9,6 +9,7 @@ import {
   setAmbientMode,
   setDisplayIndex,
   setDisplayStyle,
+  setPageMonitor,
   setCiderToken,
   spotifyLink,
   spotifyStatus,
@@ -636,6 +637,20 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
                 commit({ ambientMonitor: index, lateNightMonitor: index });
                 void setDisplayIndex(index);
               }}
+            >
+              {monitors.map((index) => (
+                <option key={index} value={index}>
+                  Display {index + 1}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field">
+            <span>App page on display</span>
+            <select
+              value={snapshot.settings.pageMonitor ?? 0}
+              onChange={(event) => void setPageMonitor(Number(event.target.value))}
             >
               {monitors.map((index) => (
                 <option key={index} value={index}>

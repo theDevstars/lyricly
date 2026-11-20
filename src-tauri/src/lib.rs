@@ -1604,7 +1604,27 @@ fn ensure_layer_window(app: &AppHandle, monitor_index: usize) -> Option<WebviewW
 /// Keeps one overlay alive per display that has its own style. Windows are
 /// hidden rather than destroyed, because a Tauri label cannot be reused once its
 /// window is gone.
+/// Which display currently holds the visible control page, if any. A layer on
+/// that display would sit on top of the page, so it steps aside.
+fn page_display(app: &AppHandle) -> Option<usize> {
+    let window = app.get_webview_window("window")?;
+    if !window.is_visible().unwrap_or(false) {
+        return None;
+    }
+    let position = window.outer_position().ok()?;
+    let monitors = app.available_monitors().ok()?;
+    monitors.iter().position(|monitor| {
+        let origin = monitor.position();
+        let size = monitor.size();
+        position.x >= origin.x
+            && position.x < origin.x + size.width as i32
+            && position.y >= origin.y
+            && position.y < origin.y + size.height as i32
+    })
+}
+
 fn sync_lyric_layers(app: &AppHandle) {
+    let page_display = page_display(app);
     let (styles, visible) = {
         let state = app.state::<Shared>();
         let runtime = state.runtime.lock().expect("runtime lock");
@@ -1628,7 +1648,8 @@ fn sync_lyric_layers(app: &AppHandle) {
             continue;
         };
         if let Some(window) = ensure_layer_window(app, index) {
-            let _ = if visible { window.show() } else { window.hide() };
+            let show = visible && page_display != Some(index);
+            let _ = if show { window.show() } else { window.hide() };
         }
     }
 }
@@ -2237,6 +2258,8 @@ pub fn run() {
                 if let WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
                     let _ = window.hide();
+                    // The page no longer owns its display, so layers come back.
+                    sync_lyric_layers(&window.app_handle());
                 }
                 return;
             }
@@ -2284,6 +2307,7 @@ pub fn run() {
             set_ambient_mode,
             set_display_index,
             set_display_style,
+            set_page_monitor,
             show_desktop_scene,
             hide_desktop_scene,
             refresh_desktop_scene,
@@ -2436,6 +2460,39 @@ pub fn show_main_window(app: &AppHandle) {
     let _ = window.set_skip_taskbar(!show_in_taskbar);
     let _ = window.show();
     let _ = window.set_focus();
+    // The page wins its display, so any layer there hides while it is open.
+    sync_lyric_layers(app);
+}
+
+/// Top-left for a window of this size, centred on the requested display. Falls
+/// back to the primary display when the index no longer exists.
+fn monitor_origin(app: &AppHandle, index: usize, width: f64, height: f64) -> Option<(f64, f64)> {
+    let monitors = app.available_monitors().ok()?;
+    let monitor = monitors
+        .get(index)
+        .cloned()
+        .or_else(|| app.primary_monitor().ok().flatten())?;
+    let scale = monitor.scale_factor();
+    let area = monitor.size().to_logical::<f64>(scale);
+    let origin = monitor.position().to_logical::<f64>(scale);
+
+    Some((
+        origin.x + ((area.width - width) / 2.0).max(0.0),
+        origin.y + ((area.height - height) / 2.0).max(0.0),
+    ))
+}
+
+/// Moves the control page to another display; it opens there from now on.
+#[tauri::command]
+fn set_page_monitor(app: AppHandle, index: usize) {
+    save_settings(&app, |settings| settings.page_monitor = index);
+    if let Some(window) = app.get_webview_window("window") {
+        if let Some((x, y)) = monitor_origin(&app, index, 1060.0, 760.0) {
+            let _ = window.set_position(LogicalPosition::new(x, y));
+        }
+    }
+    sync_lyric_layers(&app);
+    emit_snapshot(&app);
 }
 
 fn ensure_main_window(app: &AppHandle) -> Option<WebviewWindow> {
@@ -2443,13 +2500,25 @@ fn ensure_main_window(app: &AppHandle) -> Option<WebviewWindow> {
         return Some(window);
     }
 
-    WebviewWindowBuilder::new(app, "window", tauri::WebviewUrl::App("index.html".into()))
-        .title("Lyrica")
-        .inner_size(1060.0, 760.0)
-        .min_inner_size(860.0, 600.0)
-        .center()
-        .build()
-        .ok()
+    let page_monitor = {
+        let state = app.state::<Shared>();
+        let runtime = state.runtime.lock().expect("runtime lock");
+        runtime.settings.page_monitor
+    };
+
+    let mut builder =
+        WebviewWindowBuilder::new(app, "window", tauri::WebviewUrl::App("index.html".into()))
+            .title("Lyrica")
+            .inner_size(1060.0, 760.0)
+            .min_inner_size(860.0, 600.0);
+
+    // The page opens on its own display, so the other one can be all lyrics.
+    builder = match monitor_origin(app, page_monitor, 1060.0, 760.0) {
+        Some((x, y)) => builder.position(x, y),
+        None => builder.center(),
+    };
+
+    builder.build().ok()
 }
 
 /// Style ids and the names the tray shows. The gallery lives in the frontend;
