@@ -4,6 +4,8 @@ import type { LyricStyle, StyleState } from '../styles/types';
 import { activeLineIndex, playbackPosition, wordAt } from '../lib/timing';
 import { resolvePalette } from '../lib/colors';
 import { reportFrameTime } from '../lib/api';
+import { effectsFor, safeEffects } from '../effects/registry';
+import { postEffects, preEffects } from '../effects/apply';
 
 /// Light mode asks for 30 fps, so a frame is skipped when the last one is young.
 const LIGHT_FRAME_MS = 32;
@@ -107,10 +109,17 @@ export function StyleCanvas({ snapshot, style, className, hidden }: StyleCanvasP
         time: performance.now() - startedAt.current,
         width,
         height,
+        reduceMotion: Boolean(snapshot.settings.reduceMotion),
+        photosensitive: Boolean(snapshot.settings.photosensitive),
+        styleOptions: styleOptionsFor(activeStyle.id, snapshot.settings.styleOptions),
       };
 
+      const effects = safeEffects(effectsFor(activeStyle, snapshot.settings.styleEffects), state);
+
       ctx.save();
+      preEffects(ctx, state, effects);
       activeStyle.render(ctx, state);
+      postEffects(ctx, state, effects);
       ctx.restore();
     };
 
@@ -119,4 +128,18 @@ export function StyleCanvas({ snapshot, style, className, hidden }: StyleCanvasP
   }, []);
 
   return <canvas ref={canvasRef} className={className} />;
+}
+
+/** Per-style options are stored as "<styleId>.<option>" keys. */
+function styleOptionsFor(
+  styleId: string,
+  options: Record<string, string> | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!options) return out;
+  const prefix = `${styleId}.`;
+  for (const [key, value] of Object.entries(options)) {
+    if (key.startsWith(prefix)) out[key.slice(prefix.length)] = value;
+  }
+  return out;
 }

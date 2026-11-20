@@ -26,6 +26,8 @@ const siteConfig = {
   },
 
   pricing: {
+    /** "free" keeps the open-beta offer; "paid" reveals the one-time card. */
+    mode: "free" as "free" | "paid",
     priceLabel: "Free",
     priceNote:
       "Free while Lyrica is in open beta. A Discord account is required to download; there is no payment.",
@@ -33,6 +35,39 @@ const siteConfig = {
     badge: "Free · 3.6 MB",
     /** Optional line under the button, e.g. "One-time purchase. Updates included." */
     footnote: "Includes updates through the app. Windows 10 2004+ or Windows 11.",
+    oneTime: {
+      amount: "$0",
+      note: "No payment is taken while the beta is free.",
+      updates: "All 2.x updates",
+      seats: "2 PCs",
+    },
+    includes: [
+      "Every current and future style",
+      "Rim Light, Desktop Scene and Stream window",
+      "Updates delivered through the app",
+      "No subscription and no in-app ads",
+    ],
+    refund:
+      "Free while in open beta, so there is nothing to refund. If a paid version launches, it will be a one-time purchase with a 14-day refund window.",
+    gift: {
+      enabled: false,
+      label: "Give a license",
+      url: "",
+      note: "Gift checkout is not open during the free beta.",
+    },
+    sale: {
+      enabled: false,
+      label: "Launch offer",
+      endsAt: "",
+      note: "",
+      href: "#download",
+    },
+    trial: {
+      /** The current build is free, not a timed trial. */
+      enabled: false,
+      days: 14,
+      text: "Try free for {days} days. No account needed.",
+    },
   },
 
   download: {
@@ -42,9 +77,17 @@ const siteConfig = {
      * instead of sending people to an external page.
      */
     windowsUrl: "/downloads/Lyrica-Setup-2.0.0.exe",
+    fileName: "Lyrica-Setup-2.0.0.exe",
     /** SHA-256 of that exact file. Regenerate whenever you replace the installer. */
-    sha256: "ea4e03c0c60b03c20dc902ac68ee22d6d0eec725aefa15c2da970fe5aaacfdb9",
+    sha256: "168c8af221b1723166250343a4a2549a049d72f074ea26be462a90b78399e2a7",
     sizeLabel: "3.6 MB",
+    /** Add a real public report before showing the link. */
+    virusTotalUrl: "",
+    /** Only set true when the shipped installer is actually code-signed. */
+    signed: false,
+    signatureNote: "This build is not code-signed. Windows may show a SmartScreen prompt.",
+    verifyHelp:
+      'PowerShell: Get-FileHash ".\\Lyrica-Setup-2.0.0.exe" -Algorithm SHA256',
   },
 
   systemRequirements: [
@@ -57,24 +100,35 @@ const siteConfig = {
   announcement: {
     enabled: true,
     label: "New in 2.0",
-    text: "Four Native Design styles, player status, and Rim Light.",
+    text: "New styles, player status and Rim Light.",
     href: "/changelog",
     cta: "See what changed",
   },
 
   nav: [
     { label: "Styles", href: "/#styles" },
-    { label: "Rim Light", href: "/#rim-light" },
+    { label: "Playground", href: "/playground" },
+    { label: "Compare", href: "/compare" },
+    { label: "Setup", href: "/setup" },
     { label: "Blog", href: "/blog" },
-    { label: "Account", href: "/account" },
     { label: "FAQ", href: "/faq" },
   ] satisfies NavLink[],
 
   footerLinks: [
     { label: "Blog", href: "/blog" },
+    { label: "Changelog", href: "/changelog" },
+    { label: "Roadmap", href: "/roadmap" },
     { label: "FAQ", href: "/faq" },
+    { label: "Playground", href: "/playground" },
+    { label: "Style quiz", href: "/quiz" },
+    { label: "Compare", href: "/compare" },
+    { label: "Setups", href: "/setups" },
+    { label: "Setup guide", href: "/setup" },
+    { label: "Troubleshoot", href: "/troubleshoot" },
+    { label: "Docs", href: "/docs" },
+    { label: "Creators", href: "/creators" },
+    { label: "Referrals", href: "/referrals" },
     { label: "Privacy Policy", href: "/privacy" },
-    { label: "Account", href: "/account" },
     { label: "Terms of Service", href: "/terms" },
     { label: "Contact", href: "mailto:hello@lyrica.app" },
     { label: "Join Discord", href: DISCORD_INVITE, external: true },
@@ -100,12 +154,74 @@ const siteConfig = {
   discord: {
     /** Non-expiring invite to the public #verify channel. */
     inviteUrl: DISCORD_INVITE,
+    guildId: "1573169716480970872",
+    /** The widget only appears if the server enables its public widget. */
+    widgetEnabled: true,
+    joinLabel: "Join the Discord",
+    submitSetupUrl: DISCORD_INVITE,
+    creatorSubmitUrl: DISCORD_INVITE,
+    announcementsUrl: DISCORD_INVITE,
+  },
+
+  newsletter: {
+    enabled: true,
+    /** Provider hosted form endpoint. Empty opens a pre-addressed email. */
+    formUrl: "",
+    email: "hello@lyrica.app",
+    consent:
+      "One short update a month. Unsubscribe in one click. We store only your email and consent time.",
+    doubleOptIn: true,
+    privacyUrl: "/privacy",
+  },
+
+  referrals: {
+    enabled: false,
+    reward: "One free month of updates for every friend who installs.",
+    url: "",
+    note: "The referral programme opens after the paid release. Checkout will be hosted by the payment provider; card details never touch this site.",
+  },
+
+  community: {
+    setupsSubmitUrl: DISCORD_INVITE,
+    creatorsSubmitUrl: DISCORD_INVITE,
+    moderationNote:
+      "Only approved entries are listed. Credits stay with their creators, and removal is available on request.",
+  },
+
+  status: {
+    /** A lyric lookup service is not run by this site, so the page stays hidden. */
+    enabled: false,
+    href: "/status",
+    label: "Status",
+  },
+
+  features: {
+    reviews: true,
+    newsletter: true,
+    referrals: false,
+    discordWidget: true,
+    tutorials: true,
+    statusPage: false,
+  },
+
+  i18n: {
+    defaultLocale: "en",
+    locales: [
+      { code: "en", label: "English", dir: "ltr" },
+      { code: "es", label: "Español", dir: "ltr" },
+      { code: "pt", label: "Português", dir: "ltr" },
+      { code: "de", label: "Deutsch", dir: "ltr" },
+      { code: "ja", label: "日本語", dir: "ltr" },
+    ],
+    machineTranslated: ["es", "pt", "de", "ja"],
   },
 
   legal: {
     updated: "November 20, 2026",
     entity: "Lyrica",
     contactEmail: "hello@lyrica.app",
+    submissionRules:
+      "By submitting a setup, palette or style preset you confirm you own or have permission to share it, you keep your rights, and you grant Lyrica permission to display it with credit. You can request removal at any time.",
   },
 };
 

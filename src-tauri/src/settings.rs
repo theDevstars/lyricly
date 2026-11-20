@@ -112,6 +112,14 @@ pub struct Settings {
     pub display_styles: std::collections::BTreeMap<String, String>,
     /// Which display the control page (style picker and settings) opens on.
     pub page_monitor: usize,
+    /// Static layouts with crossfades only.
+    pub reduce_motion: bool,
+    /// No flashing, tearing or strobing, whatever the style does by default.
+    pub photosensitive: bool,
+    /// Shared effect toggles, keyed by effect id.
+    pub style_effects: std::collections::BTreeMap<String, String>,
+    /// Per-style options, keyed by "<styleId>.<option>".
+    pub style_options: std::collections::BTreeMap<String, String>,
     pub color_auto_sync: bool,
     pub color_text: String,
     pub color_highlight: String,
@@ -215,6 +223,10 @@ impl Default for Settings {
             show_on_desktop: true,
             display_styles: std::collections::BTreeMap::new(),
             page_monitor: 0,
+            reduce_motion: false,
+            photosensitive: false,
+            style_effects: std::collections::BTreeMap::new(),
+            style_options: std::collections::BTreeMap::new(),
             color_auto_sync: true,
             color_text: "#F5F7FF".into(),
             color_highlight: "#FF5C7A".into(),

@@ -29,8 +29,8 @@ export function StyleTiles({ activeId, previewId, pinned, onPick }: StyleTilesPr
                     background: `linear-gradient(135deg, ${style.gradient[0]}, ${style.gradient[1]})`,
                   }}
                 >
-                  <span>{style.name}</span>
-                  {group.id === 'native' && <em className="tile-new">New</em>}
+                  <span>{style.sample ?? style.name}</span>
+                  {style.isNew && <em className="tile-new">New</em>}
                 </div>
                 <div className="tile-meta">
                   <strong>{style.name}</strong>

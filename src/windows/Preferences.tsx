@@ -3,6 +3,7 @@ import type { CiderStatus, Settings, Snapshot, SpotifyStatus } from '../types';
 import { GROUPS, getStyle, STYLES, stylesIn } from '../styles/registry';
 import { StylePreview } from '../components/StylePreview';
 import { QolPanel } from '../qol/QolPanel';
+import { EffectsLayer } from '../effects/EffectsLayer';
 import {
   quitApp,
   reloadLyrics,
@@ -684,6 +685,22 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
               </label>
             ))}
           </div>
+
+          <EffectsLayer
+            snapshot={snapshot}
+            onToggle={(id, on) => {
+              if (id === 'reduce-motion') {
+                commit({ reduceMotion: on });
+              } else if (id === 'photosensitive') {
+                commit({ photosensitive: on });
+              } else {
+                const next = { ...(snapshot.settings.styleEffects ?? {}) };
+                if (on) next[id] = 'on';
+                else delete next[id];
+                commit({ styleEffects: next });
+              }
+            }}
+          />
 
           <label className="field">
             <span>Window opacity</span>

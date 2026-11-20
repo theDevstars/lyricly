@@ -70,6 +70,12 @@ export interface Settings {
   displayStyles: Record<string, string>;
   /** Which display the control page opens on. */
   pageMonitor: number;
+  reduceMotion: boolean;
+  photosensitive: boolean;
+  /** Effect id → "on" when enabled. */
+  styleEffects: Record<string, string>;
+  /** "<styleId>.<option>" → value. */
+  styleOptions: Record<string, string>;
   ambientIdleMinutes: number;
   ambientHotkey: string;
   tapSyncHotkey: string;

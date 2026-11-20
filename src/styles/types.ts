@@ -32,9 +32,44 @@ export interface StyleState {
   time: number;
   width: number;
   height: number;
+  /** Per-style options, e.g. how many lines Context Window shows. */
+  styleOptions?: Record<string, string | number | boolean>;
+  /** Static layout, crossfades only. */
+  reduceMotion?: boolean;
+  /** No flashing or hard tearing, whatever the style defaults to. */
+  photosensitive?: boolean;
 }
 
-export type StyleGroup = 'kinetic' | 'scenes' | 'native';
+export type StyleGroup = 'kinetic' | 'scenes' | 'native' | 'lyrics';
+export type StyleStatus = 'stable' | 'beta' | 'hidden';
+export type ColorMode = 'theme' | 'fixed';
+export type BackgroundMode = 'stage' | 'own';
+export type StyleMood =
+  | 'calm'
+  | 'moody'
+  | 'bright'
+  | 'nostalgic'
+  | 'romantic'
+  | 'energetic'
+  | 'experimental';
+export type DeskTag = 'minimal' | 'cozy' | 'rgb' | 'cinematic' | 'productive';
+export type MotionTag = 'type' | 'ambient' | 'kinetic' | 'scene' | 'ui';
+export type ScreenFit = 'compact' | 'balanced' | 'immersive';
+
+/**
+ * Traits are optional for older styles, but a style without them still gets
+ * sensible group-based defaults on the site. New styles should set them.
+ */
+export interface StyleTraits {
+  energy: 1 | 2 | 3 | 4 | 5;
+  motion: 1 | 2 | 3 | 4 | 5;
+  density: 1 | 2 | 3 | 4 | 5;
+  vividness: 1 | 2 | 3 | 4 | 5;
+  moods: StyleMood[];
+  desks: DeskTag[];
+  motionTags: MotionTag[];
+  screenFit: ScreenFit;
+}
 
 export interface LyricStyle {
   id: string;
@@ -46,6 +81,27 @@ export interface LyricStyle {
   gradient: [string, string];
   usesIcons: boolean;
   render(ctx: CanvasRenderingContext2D, state: StyleState): void;
+  /** Gallery eyebrow, e.g. "Kinetic type". */
+  eyebrow?: string;
+  /** Tile sample text. */
+  sample?: string;
+  /** Marks a style added in the latest release. */
+  isNew?: boolean;
+  /** Effect ids this style supports behind the shared effects layer. */
+  effects?: string[];
+  /** New styles can be hidden while they are being built. */
+  status?: StyleStatus;
+  introducedIn?: string;
+  traits?: StyleTraits;
+  colorMode?: ColorMode;
+  background?: BackgroundMode;
+  /** Optional hover/focus loop; the live canvas is the fallback. */
+  media?: {
+    poster: string;
+    webm?: string;
+    mp4?: string;
+    alt: string;
+  };
 }
 
 export interface FlatWord {
