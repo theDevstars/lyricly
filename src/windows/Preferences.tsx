@@ -779,8 +779,13 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
             <label className="switch">
               <input
                 type="checkbox"
-                checked={snapshot.ambientOn}
-                onChange={(event) => void setAmbientMode(event.target.checked)}
+                checked={draft.ambientEnabled}
+                onChange={(event) => {
+                  // Persisted master switch: also decides whether the idle timer
+                  // may bring the ambient screen back by itself.
+                  commit({ ambientEnabled: event.target.checked });
+                  void setAmbientMode(event.target.checked);
+                }}
               />
               <i />
             </label>

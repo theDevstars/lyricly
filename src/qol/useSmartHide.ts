@@ -25,11 +25,14 @@ export interface SmartHide {
 export function useSmartHide(snapshot: Snapshot): SmartHide {
   const { settings, qol } = snapshot;
   const playing = snapshot.playback.status === 'playing';
+  // Only a real pause counts: an idle player is not "paused", and saying so
+  // over the empty state is just noise.
+  const holding = snapshot.playback.status === 'paused';
   const [paused, setPaused] = useState(false);
   const pauseStart = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!settings.qolSmartHide || settings.qolHidePausedSeconds <= 0 || playing) {
+    if (!settings.qolSmartHide || settings.qolHidePausedSeconds <= 0 || !holding) {
       setPaused(false);
       pauseStart.current = null;
       return;
@@ -39,7 +42,7 @@ export function useSmartHide(snapshot: Snapshot): SmartHide {
     const delay = settings.qolHidePausedSeconds * 1000;
     const timer = window.setTimeout(() => setPaused(true), delay);
     return () => window.clearTimeout(timer);
-  }, [playing, settings.qolSmartHide, settings.qolHidePausedSeconds]);
+  }, [holding, settings.qolSmartHide, settings.qolHidePausedSeconds]);
 
   const lines = snapshot.lyrics?.lines ?? [];
   const position = playbackPosition(snapshot);

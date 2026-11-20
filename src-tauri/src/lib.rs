@@ -20,7 +20,8 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::{
-    AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewWindow,
+    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize, State,
+    WebviewWindow,
     WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
@@ -46,6 +47,10 @@ pub struct Runtime {
     pub track_key: String,
     pub loading: bool,
     pub ambient_on: bool,
+    /// True when the idle timer opened ambient, so only that one closes on activity.
+    pub ambient_auto: bool,
+    /// When ambient was last shown, so the keypress that opened it is not activity.
+    pub ambient_opened_ms: i64,
     pub error: Option<String>,
     /// Why capture exclusion could not be applied, if it failed.
     pub stream_safe_error: Option<String>,
@@ -302,15 +307,23 @@ fn place_ambient(app: &AppHandle, monitor_index: usize) {
         return;
     };
 
+    // The monitor reports physical pixels; the window API wants them converted
+    // once, not fed back as if they were already physical.
     let scale = monitor.scale_factor();
     let size = monitor.size().to_logical::<f64>(scale);
     let position = monitor.position().to_logical::<f64>(scale);
 
-    let _ = window.set_position(PhysicalPosition::new(position.x, position.y));
-    let _ = window.set_size(PhysicalSize::new(size.width, size.height));
+    let _ = window.set_position(LogicalPosition::new(position.x, position.y));
+    let _ = window.set_size(LogicalSize::new(size.width, size.height));
 }
 
 fn set_ambient(app: &AppHandle, on: bool) {
+    set_ambient_with(app, on, false);
+}
+
+/// `auto` marks the idle timer's own screen, which steps aside the moment the
+/// user comes back; anything the user asked for stays until they dismiss it.
+fn set_ambient_with(app: &AppHandle, on: bool, auto: bool) {
     let monitor_index = {
         let state = app.state::<Shared>();
         let runtime = state.runtime.lock().expect("runtime lock");
@@ -338,6 +351,10 @@ fn set_ambient(app: &AppHandle, on: bool) {
         let state = app.state::<Shared>();
         let mut runtime = state.runtime.lock().expect("runtime lock");
         runtime.ambient_on = on;
+        runtime.ambient_auto = on && auto;
+        if on {
+            runtime.ambient_opened_ms = now_ms();
+        }
     }
 
     let _ = app.emit("lyrica:ambient", on);
@@ -1104,6 +1121,8 @@ fn update_settings(app: AppHandle, patch: Settings) {
             next.cider_host = "localhost".into();
         }
         next.cider_port = next.cider_port.clamp(1, 65_535);
+        let ambient_master = next.ambient_enabled;
+        let ambient_changed = ambient_master != runtime.settings.ambient_enabled;
         runtime.settings = next;
         runtime.settings.save(&config_path(&app));
         state.genius_parsing.store(
@@ -1119,6 +1138,12 @@ fn update_settings(app: AppHandle, patch: Settings) {
         }
         drop(runtime);
         sync_hotkeys(&app);
+
+        // "Ambient mode" is the master: switching it on shows the screen, and
+        // switching it off takes it away and stops the idle timer opening it.
+        if ambient_changed {
+            set_ambient(&app, ambient_master);
+        }
     }
     set_autostart(patch_autostart(&app));
     let wallpaper = patch_wallpaper(&app);
@@ -1781,6 +1806,10 @@ pub fn run() {
                             .get_webview_window("ambient")
                             .map(|w| w.is_visible().unwrap_or(false))
                             .unwrap_or(false);
+                        // The hotkey is the master switch too, so ambient can
+                        // come back on its own the next time the desk is idle.
+                        // Save first: the snapshot `set_ambient` emits carries it.
+                        save_settings(app, |settings| settings.ambient_enabled = !visible);
                         set_ambient(app, !visible);
                     }
                 })
@@ -1840,6 +1869,8 @@ pub fn run() {
                     track_key: String::new(),
                     loading: false,
                     ambient_on: false,
+                    ambient_auto: false,
+                    ambient_opened_ms: 0,
                     error: None,
                     stream_safe_error: None,
                     late_night: false,
@@ -1893,7 +1924,14 @@ pub fn run() {
                 let _ = ensure_ambient_window(&handle, 0);
                 apply_wallpaper_layer(&handle, true);
             }
-            let _ = ambient_on;
+            // Ambient mode is a mode: if it was left on, come back in it.
+            if ambient_on {
+                let handle = handle.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(Duration::from_millis(900));
+                    set_ambient(&handle, true);
+                });
+            }
 
             // The first launch stamps the trial and opens the window, which is
             // also the onboarding.
@@ -2348,6 +2386,9 @@ fn start_ambient_loop(app: AppHandle) {
 
             let state = app.state::<Shared>();
             let (
+                ambient_enabled,
+                ambient_auto,
+                ambient_opened_ms,
                 idle_limit,
                 hide_over_fullscreen,
                 late_idle_minutes,
@@ -2359,7 +2400,12 @@ fn start_ambient_loop(app: AppHandle) {
             ) = {
                 let runtime = state.runtime.lock().expect("runtime lock");
                 let settings = &runtime.settings;
+                let runtime_ambient_auto = runtime.ambient_auto;
+                let runtime_ambient_opened = runtime.ambient_opened_ms;
                 (
+                    settings.ambient_enabled,
+                    runtime_ambient_auto,
+                    runtime_ambient_opened,
                     settings.ambient_idle_minutes * 60,
                     settings.hide_over_fullscreen,
                     settings.late_night_idle_minutes,
@@ -2422,9 +2468,15 @@ fn start_ambient_loop(app: AppHandle) {
             }
 
             if !late_on {
-                if idle_limit > 0 && idle >= idle_limit as u64 && !visible {
-                    set_ambient(&app, true);
-                } else if visible && idle < 3 {
+                if !ambient_enabled && visible {
+                    set_ambient(&app, false);
+                } else if ambient_enabled && idle_limit > 0 && idle >= idle_limit as u64 && !visible {
+                    set_ambient_with(&app, true, true);
+                } else if visible
+                    && ambient_auto
+                    && idle < 3
+                    && now_ms() - ambient_opened_ms > 5_000
+                {
                     set_ambient(&app, false);
                 }
             }

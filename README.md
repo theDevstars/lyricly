@@ -45,8 +45,10 @@ indicators are not drawn yet.
 
 **Ambient mode** — a full-screen, click-through overlay (`WS_EX_LAYERED | WS_EX_TRANSPARENT`) on a
 chosen monitor, pinned topmost so it sits above borderless-fullscreen apps. Toggle it from the tray,
-the settings window, or the global hotkey (`Ctrl+Alt+L` by default); it can also appear on its own
-after a configurable idle period. It steps aside for exclusive-fullscreen apps, detected by a window
+the settings window, or the global hotkey (`Ctrl+Alt+L` by default). The **Ambient mode** switch is
+the master and is remembered across launches; only while it is on does the idle timer bring the
+screen back. A screen you opened yourself stays until you close it, while one the idle timer opened
+fades out as soon as you touch the keyboard again. It steps aside for exclusive-fullscreen apps, detected by a window
 the desktop compositor cannot report frame bounds for (that is what a swapchain looks like from
 outside). **Wallpaper layer** re-parents the overlay to the `WorkerW` behind the desktop icons.
 
