@@ -19,6 +19,9 @@ const WS_EX_TRANSPARENT: u32 = 0x0000_0020;
 const WS_EX_TOOLWINDOW: u32 = 0x0000_0080;
 const WS_EX_NOACTIVATE: u32 = 0x0800_0000;
 
+const WDA_NONE: u32 = 0x0000_0000;
+const WDA_EXCLUDEFROMCAPTURE: u32 = 0x0000_0011;
+
 const HWND_TOPMOST: Hwnd = -1;
 const SWP_NOSIZE: u32 = 0x0001;
 const SWP_NOMOVE: u32 = 0x0002;
@@ -84,6 +87,22 @@ extern "system" {
     fn GetWindowThreadProcessId(hwnd: Hwnd, process_id: *mut u32) -> u32;
     fn MonitorFromWindow(hwnd: Hwnd, flags: u32) -> isize;
     fn GetLastInputInfo(info: *mut LastInputInfo) -> i32;
+    fn SetWindowDisplayAffinity(hwnd: Hwnd, affinity: u32) -> i32;
+    fn OpenInputDesktop(flags: u32, inherit: i32, access: u32) -> isize;
+    fn GetUserObjectInformationW(
+        handle: isize,
+        index: i32,
+        info: *mut c_void,
+        length: u32,
+        needed: *mut u32,
+    ) -> i32;
+    fn CloseDesktop(desktop: isize) -> i32;
+    fn SetThreadExecutionState(flags: u32) -> u32;
+    fn EnumChildWindows(
+        parent: Hwnd,
+        callback: extern "system" fn(Hwnd, isize) -> i32,
+        lparam: isize,
+    ) -> i32;
 }
 
 #[link(name = "gdi32")]
@@ -123,6 +142,26 @@ pub fn set_click_through(hwnd: Hwnd, enabled: bool) {
             style & !WS_EX_TRANSPARENT
         };
         SetWindowLongW(hwnd, GWL_EXSTYLE, applied as i32);
+    }
+}
+
+extern "system" fn exclude_child(hwnd: Hwnd, lparam: isize) -> i32 {
+    unsafe {
+        SetWindowDisplayAffinity(hwnd, *(lparam as *const u32));
+    }
+    1
+}
+
+/// Hides the window from screen capture (OBS, Discord, Teams, the Snipping
+/// Tool) while it stays visible on the monitor. `WDA_EXCLUDEFROMCAPTURE` needs
+/// Windows 10 2004 or newer; older builds fail and the caller reports that.
+/// WebView2 paints into child windows, so they get the same affinity.
+pub fn set_capture_hidden(hwnd: Hwnd, hidden: bool) -> bool {
+    let affinity = if hidden { WDA_EXCLUDEFROMCAPTURE } else { WDA_NONE };
+    unsafe {
+        let applied = SetWindowDisplayAffinity(hwnd, affinity) != 0;
+        EnumChildWindows(hwnd, exclude_child, &affinity as *const u32 as isize);
+        applied
     }
 }
 
@@ -278,6 +317,52 @@ pub fn exclusive_fullscreen_active() -> bool {
         }
 
         foreground_is_fullscreen(foreground) && exclusive_swapchain(foreground)
+    }
+}
+
+const ES_CONTINUOUS: u32 = 0x8000_0000;
+const ES_SYSTEM_REQUIRED: u32 = 0x0000_0001;
+const ES_DISPLAY_REQUIRED: u32 = 0x0000_0002;
+
+/// Stops the display from dimming or sleeping. Thread-scoped, so the caller has
+/// to be a long-lived thread and must reset it with `false`.
+pub fn keep_display_awake(on: bool) {
+    unsafe {
+        let flags = if on {
+            ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED
+        } else {
+            ES_CONTINUOUS
+        };
+        SetThreadExecutionState(flags);
+    }
+}
+
+/// True while the session is locked (the input desktop is not "Default").
+pub fn session_locked() -> bool {
+    unsafe {
+        let desktop = OpenInputDesktop(0, 0, 0x0001);
+        if desktop == 0 {
+            return true;
+        }
+
+        let mut needed = 0u32;
+        GetUserObjectInformationW(desktop, 2, core::ptr::null_mut(), 0, &mut needed);
+        let mut buffer = vec![0u16; (needed as usize / 2).max(2)];
+        let ok = GetUserObjectInformationW(
+            desktop,
+            2,
+            buffer.as_mut_ptr() as *mut c_void,
+            needed,
+            &mut needed,
+        );
+        CloseDesktop(desktop);
+
+        if ok == 0 {
+            return true;
+        }
+
+        let name: String = String::from_utf16_lossy(&buffer);
+        !name.trim_end_matches('\0').eq_ignore_ascii_case("Default")
     }
 }
 

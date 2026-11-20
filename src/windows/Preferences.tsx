@@ -11,6 +11,7 @@ import {
   tapSyncCancel,
   tapSyncRecord,
   tapSyncSave,
+  setLateNight,
   tapSyncStart,
   testCider,
   testLyricsSource,
@@ -43,6 +44,8 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
   const [sourceResults, setSourceResults] = useState<Record<string, string>>({});
   const [hotkeyDraft, setHotkeyDraft] = useState(snapshot.settings.tapSyncHotkey);
   const [tapError, setTapError] = useState<string | null>(null);
+  const [captureDraft, setCaptureDraft] = useState(snapshot.settings.streamSafeHotkey);
+  const [lateHotkeyDraft, setLateHotkeyDraft] = useState(snapshot.settings.lateNightHotkey);
   // Held locally and saved on blur, so a settings round trip cannot fight typing.
   const [hostDraft, setHostDraft] = useState(snapshot.settings.ciderHost);
   const [portDraft, setPortDraft] = useState(String(snapshot.settings.ciderPort));
@@ -114,6 +117,18 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
     } catch (error) {
       setTapError(String(error));
     }
+  };
+
+  const commitLateHotkey = () => {
+    const combo = lateHotkeyDraft.trim() || 'Ctrl+Alt+K';
+    setLateHotkeyDraft(combo);
+    commit({ lateNightHotkey: combo });
+  };
+
+  const commitCaptureHotkey = () => {
+    const combo = captureDraft.trim() || 'Ctrl+Alt+S';
+    setCaptureDraft(combo);
+    commit({ streamSafeHotkey: combo });
   };
 
   const commitTapHotkey = () => {
@@ -560,6 +575,38 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
             {tapError && <p className="note">{tapError}</p>}
           </div>
 
+          <div className="tap-sync">
+            <div className="tap-sync-head">
+              <span>Hide from screen capture</span>
+              <small>
+                {snapshot.streamSafe ? 'On — invisible to recorders' : 'Off'}
+              </small>
+            </div>
+            <label className="field field-wide">
+              <span>Hotkey</span>
+              <input
+                type="text"
+                value={captureDraft}
+                onChange={(event) => setCaptureDraft(event.target.value)}
+                onBlur={commitCaptureHotkey}
+              />
+            </label>
+            <p className="note">
+              Keeps the lyrics out of OBS, Discord, Teams and screen recordings while staying
+              visible on your monitor. Needs Windows 10 2004 or newer.
+            </p>
+            <div className="panel-actions">
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => commit({ streamSafe: !snapshot.settings.streamSafe })}
+              >
+                {snapshot.settings.streamSafe ? 'Stop hiding' : 'Hide from capture'}
+              </button>
+            </div>
+            {snapshot.streamSafeError && <p className="note">{snapshot.streamSafeError}</p>}
+          </div>
+
           <div className="toggle-row">
             <span>Start with Windows</span>
             <label className="switch">
@@ -666,6 +713,160 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
                 type="checkbox"
                 checked={draft.hideOverFullscreen}
                 onChange={(event) => commit({ hideOverFullscreen: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
+          <h2>Late Night</h2>
+          <p className="note">
+            A full-screen, lock-screen-styled takeover for the idle evening. Windows does not let
+            apps draw on the real lock screen, so this dims the desktop instead.
+          </p>
+
+          <div className="panel-actions">
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => void setLateNight(!snapshot.lateNight)}
+            >
+              {snapshot.lateNight ? 'Exit Late Night' : 'Enter Late Night'}
+            </button>
+          </div>
+
+          <label className="field">
+            <span>Global hotkey</span>
+            <input
+              type="text"
+              value={lateHotkeyDraft}
+              onChange={(event) => setLateHotkeyDraft(event.target.value)}
+              onBlur={commitLateHotkey}
+            />
+          </label>
+
+          <label className="field">
+            <span>Monitors</span>
+            <select
+              value={draft.lateNightMode}
+              onChange={(event) =>
+                commit({ lateNightMode: event.target.value as 'primary' | 'all' })
+              }
+            >
+              <option value="primary">Primary only</option>
+              <option value="all">All monitors (mirror)</option>
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Background</span>
+            <select
+              value={draft.lateNightBackground}
+              onChange={(event) =>
+                commit({ lateNightBackground: event.target.value as 'black' | 'dim' })
+              }
+            >
+              <option value="black">Black</option>
+              <option value="dim">Dimmed desktop</option>
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Appear when idle for</span>
+            <input
+              type="range"
+              min={0}
+              max={60}
+              value={draft.lateNightIdleMinutes}
+              onChange={(event) =>
+                commit({ lateNightIdleMinutes: Number(event.target.value) })
+              }
+            />
+            <output>
+              {draft.lateNightIdleMinutes === 0 ? 'never' : `${draft.lateNightIdleMinutes} min`}
+            </output>
+          </label>
+
+          <div className="toggle-row">
+            <div>
+              <span>Clock and date</span>
+              <small>Large lock-screen style time, centred near the top</small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={draft.lateNightClock}
+                onChange={(event) => commit({ lateNightClock: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
+
+          <div className="toggle-row">
+            <span>24-hour clock</span>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={draft.lateNight24h}
+                onChange={(event) => commit({ lateNight24h: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
+
+          <div className="toggle-row">
+            <div>
+              <span>Click-through</span>
+              <small>Mouse input passes to the desktop below; use the hotkey to exit</small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={draft.lateNightClickThrough}
+                onChange={(event) => commit({ lateNightClickThrough: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
+
+          <div className="toggle-row">
+            <div>
+              <span>Open when playback starts</span>
+              <small>Enter the screen as soon as something begins playing</small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={draft.lateNightOnPlay}
+                onChange={(event) => commit({ lateNightOnPlay: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
+
+          <div className="toggle-row">
+            <div>
+              <span>Step aside in exclusive fullscreen</span>
+              <small>Closes over games and fullscreen video</small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={draft.lateNightHideFullscreen}
+                onChange={(event) => commit({ lateNightHideFullscreen: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
+
+          <div className="toggle-row">
+            <div>
+              <span>Resume after unlocking</span>
+              <small>Reopens if Windows locked while the screen was up</small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={draft.lateNightResumeAfterUnlock}
+                onChange={(event) => commit({ lateNightResumeAfterUnlock: event.target.checked })}
               />
               <i />
             </label>

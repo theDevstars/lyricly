@@ -13,6 +13,9 @@ export const nudge = (deltaMs: number): Promise<void> => invoke('nudge', { delta
 
 export const togglePlayPause = (): Promise<void> => invoke('toggle_play_pause');
 
+export const setLateNight = (enabled: boolean): Promise<void> =>
+  invoke('set_late_night', { enabled });
+
 export const setAmbientMode = (enabled: boolean): Promise<void> =>
   invoke('set_ambient_mode', { enabled });
 

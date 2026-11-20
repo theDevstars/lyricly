@@ -1,5 +1,5 @@
 import { iconFor } from '../icons';
-import { clamp01, type LyricStyle, type StyleState } from '../types';
+import { clamp01, wordGap, type LyricStyle, type StyleState } from '../types';
 
 const KEYWORD = '#ff7ab2';
 const FUNC = '#7dd3fc';
@@ -165,10 +165,13 @@ function drawCodeLine(
 
     x += fullWidth;
     if (index < text.length - 1) {
-      x += ctx.measureText(' ').width;
-      ctx.fillStyle = STRING;
-      ctx.globalAlpha = active && active.wordIndex < index ? 0.2 : opacity;
-      ctx.fillText(' ', x - ctx.measureText(' ').width, y);
+      const gapWidth = wordGap(word.text, text[index + 1].text, ctx.measureText(' ').width);
+      x += gapWidth;
+      if (gapWidth > 0) {
+        ctx.fillStyle = STRING;
+        ctx.globalAlpha = active && active.wordIndex < index ? 0.2 : opacity;
+        ctx.fillText(' ', x - gapWidth, y);
+      }
     }
   });
 

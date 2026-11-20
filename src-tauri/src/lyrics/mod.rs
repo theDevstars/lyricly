@@ -154,6 +154,28 @@ fn split_words(content: &str) -> (String, Vec<(i64, String)>, bool) {
     (plain.trim().to_string(), words, exact)
 }
 
+/// Scripts written without spaces between words. Splitting these on whitespace
+/// leaves a whole line as one "word", so per-word styles have nothing to step
+/// through.
+pub(crate) fn is_unspaced_script(ch: char) -> bool {
+    matches!(
+        ch as u32,
+        0x0E00..=0x0E7F      // Thai
+            | 0x0E80..=0x0EFF      // Lao
+            | 0x1000..=0x109F      // Myanmar
+            | 0x1780..=0x17FF      // Khmer
+            | 0x3040..=0x30FF      // Hiragana and Katakana
+            | 0x3400..=0x4DBF      // CJK extension A
+            | 0x4E00..=0x9FFF      // CJK unified ideographs
+            | 0xF900..=0xFAFF      // CJK compatibility ideographs
+            | 0x20000..=0x2FA1F // CJK extensions B–F
+    )
+}
+
+fn is_cjk_punctuation(ch: char) -> bool {
+    matches!(ch as u32, 0x3000..=0x303F | 0xFF01..=0xFF60)
+}
+
 fn syllable_count(word: &str) -> usize {
     let mut count = 0;
     let mut previous_vowel = false;
@@ -167,10 +189,37 @@ fn syllable_count(word: &str) -> usize {
     count.max(1)
 }
 
+/// Words for spaced text, single characters for scripts that do not use
+/// spaces, so every script gets something to animate through.
+fn segments(text: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut word = String::new();
+
+    for ch in text.chars() {
+        if ch.is_whitespace() {
+            if !word.is_empty() {
+                out.push(std::mem::take(&mut word));
+            }
+        } else if is_unspaced_script(ch) || is_cjk_punctuation(ch) {
+            if !word.is_empty() {
+                out.push(std::mem::take(&mut word));
+            }
+            out.push(ch.to_string());
+        } else {
+            word.push(ch);
+        }
+    }
+
+    if !word.is_empty() {
+        out.push(word);
+    }
+    out
+}
+
 /// Spreads a line's real duration across its words, weighted by syllables.
 /// Only used when the source has no per-word timestamps.
 fn split_evenly(text: &str, start_ms: i64, end_ms: i64) -> Vec<LyricWord> {
-    let parts: Vec<&str> = text.split_whitespace().collect();
+    let parts = segments(text);
     if parts.is_empty() {
         return Vec::new();
     }
@@ -190,7 +239,7 @@ fn split_evenly(text: &str, start_ms: i64, end_ms: i64) -> Vec<LyricWord> {
             (cursor + share).round() as i64
         };
         words.push(LyricWord {
-            text: (*part).to_string(),
+            text: part.clone(),
             start_ms: start,
             end_ms: end.max(start + 60),
         });
@@ -1112,6 +1161,29 @@ mod tests {
             !second.attempts.is_empty(),
             "an offline provider must be retried, not cached"
         );
+    }
+
+    #[test]
+    fn scripts_without_spaces_are_split_per_character() {
+        let words = split_evenly("日本語の歌", 0, 3_000);
+        assert_eq!(words.len(), 5);
+        assert_eq!(words[0].text, "日");
+        assert!(words.windows(2).all(|pair| pair[0].start_ms < pair[1].start_ms));
+        assert_eq!(words[4].end_ms, 3_000);
+    }
+
+    #[test]
+    fn spaced_scripts_keep_their_words() {
+        let words = split_evenly("the city hums", 0, 3_000);
+        assert_eq!(words.len(), 3);
+        assert_eq!(words[2].text, "hums");
+    }
+
+    #[test]
+    fn mixed_lines_split_on_both_rules() {
+        let words = split_evenly("hello 世界", 0, 2_000);
+        let texts: Vec<&str> = words.iter().map(|word| word.text.as_str()).collect();
+        assert_eq!(texts, ["hello", "世", "界"]);
     }
 
     #[tokio::test]

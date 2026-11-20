@@ -13,7 +13,11 @@ Built with Tauri 2 (Rust) and React + TypeScript, drawing each style on Canvas 2
   timeline events, so lyrics stay smooth between samples.
 - Fetches timed lyrics from **LRCLIB** and caches them in **SQLite**. Word timings from enhanced
   LRC are used when a record has them; otherwise each line's real duration is split across its
-  words by syllable count.
+  words by syllable count. Scripts written without spaces (Chinese, Japanese kana, Thai, Lao,
+  Khmer, Myanmar) are split per character instead, so per-word styles still step through them.
+- **Hides itself from screen capture** on Windows 10 2004 and newer: the lyrics windows are marked
+  `WDA_EXCLUDEFROMCAPTURE`, so they stay on your monitor but never appear in OBS, Discord, Teams
+  or a screen recording. Toggle it from the tray, the settings panel, or `Ctrl+Alt+S`.
 - Runs entirely from the **tray** — no taskbar button — with single-instance behaviour, a
   Windows `Run`-key launch-at-login option, and the Tauri updater plugin wired in.
 
@@ -22,6 +26,22 @@ Built with Tauri 2 (Rust) and React + TypeScript, drawing each style on Canvas 2
 **Lyrics window** — frameless, transparent, always-on-top, draggable by its top bar and resizable.
 The top bar carries player status dots for Spotify and Apple Music, a ±100 ms nudge control, the
 style picker and a pause/play pill. Size and position are remembered between runs.
+
+**Late Night** — a full-screen, lock-screen-styled screen for an idle evening: a large thin-weight
+clock with the date above it near the top of the screen, the current track and an exit hint at the
+bottom, on black or over a dimmed desktop, on one chosen monitor or mirrored across all of them.
+Open and close it with its global hotkey (`Ctrl+Alt+K` by default), the tray item, or the Ambient
+tab; any mouse movement past a 2 px dead zone (after a short grace period), key press or click
+fades it out over 300 ms. It can also appear on its own after N idle minutes while music is
+playing, or the moment playback starts. While it is up it holds the display awake with
+`SetThreadExecutionState` so the screen does not dim underneath, steps aside for
+exclusive-fullscreen apps, and closes when the session locks — reopening after unlock when that
+setting is on.
+
+*Limitation:* Windows does not let an ordinary application draw on the real lock screen (Win+L).
+Late Night is a desktop takeover designed to look like one; it never touches the actual lock
+screen, the session stays unlocked and other apps keep running. Battery, Wi-Fi and volume
+indicators are not drawn yet.
 
 **Ambient mode** — a full-screen, click-through overlay (`WS_EX_LAYERED | WS_EX_TRANSPARENT`) on a
 chosen monitor, pinned topmost so it sits above borderless-fullscreen apps. Toggle it from the tray,

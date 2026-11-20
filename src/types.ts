@@ -59,6 +59,20 @@ export interface Settings {
   ambientIdleMinutes: number;
   ambientHotkey: string;
   tapSyncHotkey: string;
+  streamSafe: boolean;
+  streamSafeHotkey: string;
+  lateNightHotkey: string;
+  lateNightIdleMinutes: number;
+  lateNightOnPlay: boolean;
+  lateNightMode: 'primary' | 'all' | string;
+  lateNightMonitor: number;
+  lateNightBackground: 'black' | 'dim' | string;
+  lateNightClock: boolean;
+  lateNight24h: boolean;
+  lateNightClickThrough: boolean;
+  lateNightHideFullscreen: boolean;
+  lateNightKeepAwake: boolean;
+  lateNightResumeAfterUnlock: boolean;
   wallpaperLayer: boolean;
   hideOverFullscreen: boolean;
   autostart: boolean;
@@ -83,5 +97,8 @@ export interface Snapshot {
   loading: boolean;
   ambientOn: boolean;
   error: string | null;
+  streamSafe: boolean;
+  streamSafeError: string | null;
+  lateNight: boolean;
   tapSync: { active: boolean; recorded: number; total: number } | null;
 }

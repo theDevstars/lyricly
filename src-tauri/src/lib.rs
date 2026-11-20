@@ -34,6 +34,10 @@ pub struct Runtime {
     pub loading: bool,
     pub ambient_on: bool,
     pub error: Option<String>,
+    /// Why capture exclusion could not be applied, if it failed.
+    pub stream_safe_error: Option<String>,
+    /// Whether the Late Night ambient screen is up.
+    pub late_night: bool,
     /// An in-progress tap-to-sync run, if any.
     pub tap: Option<TapSession>,
 }
@@ -66,6 +70,9 @@ struct Snapshot {
     loading: bool,
     ambient_on: bool,
     error: Option<String>,
+    stream_safe: bool,
+    stream_safe_error: Option<String>,
+    late_night: bool,
     tap_sync: Option<TapStatus>,
 }
 
@@ -111,6 +118,9 @@ fn snapshot(state: &Shared) -> Snapshot {
         loading: runtime.loading,
         ambient_on: runtime.ambient_on,
         error: runtime.error.clone(),
+        stream_safe: runtime.settings.stream_safe,
+        stream_safe_error: runtime.stream_safe_error.clone(),
+        late_night: runtime.late_night,
         tap_sync: runtime.tap.as_ref().map(TapStatus::of),
     }
 }
@@ -177,6 +187,14 @@ fn ensure_ambient_window(app: &AppHandle, monitor_index: usize) -> Option<Webvie
     if let Ok(handle) = window.hwnd() {
         overlay::make_click_through(handle.0 as isize);
         overlay::pin_topmost(handle.0 as isize);
+        let capture = {
+            let state = app.state::<Shared>();
+            let runtime = state.runtime.lock().expect("runtime lock");
+            runtime.settings.stream_safe
+        };
+        if capture {
+            overlay::set_capture_hidden(handle.0 as isize, true);
+        }
     }
 
     Some(window)
@@ -330,6 +348,200 @@ fn spawn_lyric_lookup(app: AppHandle, key: String, query: TrackQuery) {
 
         emit_snapshot(&app);
     });
+}
+
+// ------------------------------------------------------- late night ambient
+
+const LATE_NIGHT_PREFIX: &str = "late-night-";
+
+fn late_night_settings(app: &AppHandle) -> (String, usize, bool) {
+    let state = app.state::<Shared>();
+    let runtime = state.runtime.lock().expect("runtime lock");
+    (
+        runtime.settings.late_night_mode.clone(),
+        runtime.settings.late_night_monitor,
+        runtime.settings.late_night_click_through,
+    )
+}
+
+/// One entry per monitor the screen should cover: the chosen one, or all of
+/// them (mirror).
+fn late_night_targets(app: &AppHandle) -> Vec<(usize, tauri::Monitor)> {
+    let Ok(monitors) = app.available_monitors() else {
+        return Vec::new();
+    };
+    if monitors.is_empty() {
+        return Vec::new();
+    }
+
+    let (mode, chosen, _) = late_night_settings(app);
+    if mode == "all" {
+        return monitors.into_iter().enumerate().collect();
+    }
+
+    let index = chosen.min(monitors.len() - 1);
+    monitors
+        .into_iter()
+        .enumerate()
+        .filter(|(position, _)| *position == index)
+        .collect()
+}
+
+fn place_late_night(window: &WebviewWindow, monitor: &tauri::Monitor) {
+    let scale = monitor.scale_factor();
+    let size = monitor.size().to_logical::<f64>(scale);
+    let position = monitor.position().to_logical::<f64>(scale);
+    let _ = window.set_position(PhysicalPosition::new(position.x, position.y));
+    let _ = window.set_size(PhysicalSize::new(size.width, size.height));
+}
+
+/// Creates, places and prunes the full-screen windows. Safe to call repeatedly:
+/// it also picks up monitor hotplug, DPI and resolution changes.
+fn sync_late_night_windows(app: &AppHandle) {
+    let targets = late_night_targets(app);
+    if targets.is_empty() {
+        return;
+    }
+
+    let (_, _, click_through) = late_night_settings(app);
+    let mut wanted: Vec<String> = Vec::new();
+    let mut focused = false;
+
+    for (index, monitor) in targets {
+        let label = format!("{LATE_NIGHT_PREFIX}{index}");
+        wanted.push(label.clone());
+
+        let window = match app.get_webview_window(&label) {
+            Some(window) => window,
+            None => {
+                let scale = monitor.scale_factor();
+                let size = monitor.size().to_logical::<f64>(scale);
+                let position = monitor.position().to_logical::<f64>(scale);
+                let built = WebviewWindowBuilder::new(
+                    app,
+                    &label,
+                    tauri::WebviewUrl::App("index.html".into()),
+                )
+                .title("Lyrica Late Night")
+                .inner_size(size.width, size.height)
+                .position(position.x, position.y)
+                .decorations(false)
+                .transparent(false)
+                .shadow(false)
+                .always_on_top(true)
+                .skip_taskbar(true)
+                .resizable(false)
+                .visible(false)
+                .focused(false)
+                .build();
+
+                match built {
+                    Ok(window) => window,
+                    Err(error) => {
+                        eprintln!("late night window: {error}");
+                        continue;
+                    }
+                }
+            }
+        };
+
+        place_late_night(&window, &monitor);
+        let _ = window.set_ignore_cursor_events(click_through);
+        let _ = window.show();
+
+        #[cfg(windows)]
+        if let Ok(handle) = window.hwnd() {
+            overlay::pin_topmost(handle.0 as isize);
+        }
+
+        // Keyboard exit needs focus; click-through mode deliberately never
+        // takes it.
+        if !click_through && !focused {
+            let _ = window.set_focus();
+            focused = true;
+        }
+    }
+
+    for (label, window) in app.webview_windows() {
+        if label.starts_with(LATE_NIGHT_PREFIX) && !wanted.contains(&label) {
+            let _ = window.destroy();
+        }
+    }
+}
+
+fn close_late_night(app: &AppHandle) {
+    for (label, window) in app.webview_windows() {
+        if label.starts_with(LATE_NIGHT_PREFIX) {
+            let _ = window.destroy();
+        }
+    }
+}
+
+fn apply_late_night(app: &AppHandle, on: bool) {
+    {
+        let state = app.state::<Shared>();
+        let mut runtime = state.runtime.lock().expect("runtime lock");
+        runtime.late_night = on;
+    }
+
+    if on {
+        // Both are full-screen overlays; the lyric layer steps aside.
+        set_ambient(app, false);
+        sync_late_night_windows(app);
+    } else {
+        close_late_night(app);
+    }
+
+    sync_tray(app);
+    emit_snapshot(app);
+}
+
+// ------------------------------------------------------- capture exclusion
+
+/// Applies (or clears) capture exclusion on every Lyric window. WebView2 paints
+/// through child windows, which `set_capture_hidden` covers too.
+fn apply_stream_safe(app: &AppHandle, on: bool) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        let mut found = false;
+        for label in ["lyrics", "ambient"] {
+            let Some(window) = app.get_webview_window(label) else {
+                continue;
+            };
+            let Ok(handle) = window.hwnd() else {
+                continue;
+            };
+            found = true;
+            if !overlay::set_capture_hidden(handle.0 as isize, on) && on {
+                return Err("Windows refused the request — capture exclusion needs Windows 10 2004 or newer".into());
+            }
+        }
+        if found {
+            Ok(())
+        } else {
+            Err("no Lyrica window is open yet".into())
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (app, on);
+        Err("capture exclusion is only available on Windows".into())
+    }
+}
+
+fn set_stream_safe(app: &AppHandle, on: bool) {
+    let result = apply_stream_safe(app, on);
+
+    {
+        let state = app.state::<Shared>();
+        let mut runtime = state.runtime.lock().expect("runtime lock");
+        runtime.settings.stream_safe = on && result.is_ok();
+        runtime.settings.save(&config_path(app));
+        runtime.stream_safe_error = result.err();
+    }
+
+    sync_tray(app);
+    emit_snapshot(app);
 }
 
 // --------------------------------------------------------------- tap to sync
@@ -531,9 +743,18 @@ fn sync_hotkeys(app: &AppHandle) {
         )
     };
 
+    let (capture, late) = {
+        let state = app.state::<Shared>();
+        let runtime = state.runtime.lock().expect("runtime lock");
+        (
+            runtime.settings.stream_safe_hotkey.clone(),
+            runtime.settings.late_night_hotkey.clone(),
+        )
+    };
+
     let shortcuts = app.global_shortcut();
     let _ = shortcuts.unregister_all();
-    for combo in [ambient, tap] {
+    for combo in [ambient, tap, capture, late] {
         if let Err(error) = shortcuts.register(combo.as_str()) {
             eprintln!("global shortcut {combo}: {error}");
         }
@@ -573,6 +794,22 @@ pub fn handle_tray_event(app: &AppHandle, id: &str) {
             apply_wallpaper_layer(app, enabled);
             sync_tray(app);
         }
+        tray::ITEM_LATE_NIGHT => {
+            let on = {
+                let state = app.state::<Shared>();
+                let runtime = state.runtime.lock().expect("runtime lock");
+                runtime.late_night
+            };
+            apply_late_night(app, !on);
+        }
+        tray::ITEM_CAPTURE => {
+            let on = {
+                let state = app.state::<Shared>();
+                let runtime = state.runtime.lock().expect("runtime lock");
+                runtime.settings.stream_safe
+            };
+            set_stream_safe(app, !on);
+        }
         tray::ITEM_AUTOSTART => {
             let state = app.state::<Shared>();
             let mut runtime = state.runtime.lock().expect("runtime lock");
@@ -596,10 +833,12 @@ fn sync_tray(app: &AppHandle) {
     let ambient = ambient_window(app).map(|w| w.is_visible().unwrap_or(false)).unwrap_or(false);
     let wallpaper = runtime.settings.wallpaper_layer;
     let autostart = runtime.settings.autostart;
+    let capture = runtime.settings.stream_safe;
+    let late_night = runtime.late_night;
     drop(runtime);
 
     if let Some(tray_state) = app.try_state::<tray::TrayState>() {
-        tray_state.sync(ambient, wallpaper, autostart);
+        tray_state.sync(ambient, wallpaper, autostart, capture, late_night);
     }
 }
 
@@ -647,6 +886,7 @@ fn set_style(app: AppHandle, style: String) {
 #[tauri::command]
 fn update_settings(app: AppHandle, patch: Settings) {
     let state = app.state::<Shared>();
+    let want_stream_safe = patch.stream_safe;
     {
         let mut runtime = state.runtime.lock().expect("runtime lock");
         let mut next = patch;
@@ -678,6 +918,7 @@ fn update_settings(app: AppHandle, patch: Settings) {
     let wallpaper = patch_wallpaper(&app);
     apply_wallpaper_layer(&app, wallpaper);
     sync_tray(&app);
+    set_stream_safe(&app, want_stream_safe);
     emit_snapshot(&app);
 }
 
@@ -763,6 +1004,11 @@ fn toggle_play_pause() -> Result<(), String> {
 #[tauri::command]
 fn set_ambient_mode(app: AppHandle, enabled: bool) {
     set_ambient(&app, enabled);
+}
+
+#[tauri::command]
+fn set_late_night(app: AppHandle, enabled: bool) {
+    apply_late_night(&app, enabled);
 }
 
 #[tauri::command]
@@ -868,16 +1114,30 @@ pub fn run() {
                     let Some(state) = app.try_state::<Shared>() else {
                         return;
                     };
-                    let (ambient, tap) = {
+                    let (ambient, tap, capture, late) = {
                         let runtime = state.runtime.lock().expect("runtime lock");
                         (
                             runtime.settings.ambient_hotkey.clone(),
                             runtime.settings.tap_sync_hotkey.clone(),
+                            runtime.settings.stream_safe_hotkey.clone(),
+                            runtime.settings.late_night_hotkey.clone(),
                         )
                     };
 
                     if shortcut_matches(shortcut, &tap) {
                         hotkey_tap(app);
+                    } else if shortcut_matches(shortcut, &late) {
+                        let on = {
+                            let runtime = state.runtime.lock().expect("runtime lock");
+                            runtime.late_night
+                        };
+                        apply_late_night(app, !on);
+                    } else if shortcut_matches(shortcut, &capture) {
+                        let on = {
+                            let runtime = state.runtime.lock().expect("runtime lock");
+                            runtime.settings.stream_safe
+                        };
+                        set_stream_safe(app, !on);
                     } else if shortcut_matches(shortcut, &ambient) {
                         let visible = app
                             .get_webview_window("ambient")
@@ -927,6 +1187,9 @@ pub fn run() {
 
             let accent_hotkey = settings.ambient_hotkey.clone();
             let tap_hotkey = settings.tap_sync_hotkey.clone();
+            let capture_hotkey = settings.stream_safe_hotkey.clone();
+            let capture_on = settings.stream_safe;
+            let late_hotkey = settings.late_night_hotkey.clone();
             let autostart_on = settings.autostart;
             let wallpaper_on = settings.wallpaper_layer;
             let ambient_on = settings.ambient_enabled;
@@ -940,6 +1203,8 @@ pub fn run() {
                     loading: false,
                     ambient_on: false,
                     error: None,
+                    stream_safe_error: None,
+                    late_night: false,
                     tap: None,
                 }),
                 cache,
@@ -948,7 +1213,7 @@ pub fn run() {
                 cider,
             });
 
-            tray::build(&handle, false, wallpaper_on, autostart_on)?;
+            tray::build(&handle, false, wallpaper_on, autostart_on, capture_on, false)?;
 
             // Remember the window's size and place on this monitor.
             if let Some(window) = app.get_webview_window("lyrics") {
@@ -963,6 +1228,23 @@ pub fn run() {
             }
             if let Err(error) = app.global_shortcut().register(tap_hotkey.as_str()) {
                 eprintln!("tap sync shortcut: {error}");
+            }
+            if let Err(error) = app.global_shortcut().register(capture_hotkey.as_str()) {
+                eprintln!("capture shortcut: {error}");
+            }
+            if let Err(error) = app.global_shortcut().register(late_hotkey.as_str()) {
+                eprintln!("late night shortcut: {error}");
+            }
+
+            if capture_on {
+                if let Err(error) = apply_stream_safe(&handle, true) {
+                    eprintln!("capture exclusion: {error}");
+                    let state = handle.state::<Shared>();
+                    let mut runtime = state.runtime.lock().expect("runtime lock");
+                    runtime.settings.stream_safe = false;
+                    runtime.stream_safe_error = Some(error);
+                }
+                sync_tray(&handle);
             }
 
             if wallpaper_on {
@@ -1018,6 +1300,7 @@ pub fn run() {
             nudge,
             toggle_play_pause,
             set_ambient_mode,
+            set_late_night,
             set_wallpaper_layer,
             reload_lyrics,
             test_lyrics_source,
@@ -1102,14 +1385,34 @@ fn start_poller(app: AppHandle) {
 fn start_ambient_loop(app: AppHandle) {
     std::thread::spawn(move || {
         let mut tick: u64 = 0;
+        let mut was_playing = false;
+        let mut resume_pending = false;
+
         loop {
             std::thread::sleep(Duration::from_millis(1_000));
             tick += 1;
 
             let state = app.state::<Shared>();
-            let idle_limit = {
+            let (
+                idle_limit,
+                hide_over_fullscreen,
+                late_idle_minutes,
+                late_on_play,
+                late_hide_fullscreen,
+                late_resume,
+                late_keep_awake,
+            ) = {
                 let runtime = state.runtime.lock().expect("runtime lock");
-                runtime.settings.ambient_idle_minutes * 60
+                let settings = &runtime.settings;
+                (
+                    settings.ambient_idle_minutes * 60,
+                    settings.hide_over_fullscreen,
+                    settings.late_night_idle_minutes,
+                    settings.late_night_on_play,
+                    settings.late_night_hide_fullscreen,
+                    settings.late_night_resume_after_unlock,
+                    settings.late_night_keep_awake,
+                )
             };
 
             if tick % 2 != 0 {
@@ -1117,25 +1420,62 @@ fn start_ambient_loop(app: AppHandle) {
             }
 
             let idle = idle_seconds();
+            let (mut late_on, playing) = {
+                let runtime = state.runtime.lock().expect("runtime lock");
+                (runtime.late_night, runtime.playback.status == "playing")
+            };
             let visible = ambient_window(&app)
                 .map(|w| w.is_visible().unwrap_or(false))
                 .unwrap_or(false);
 
-            if idle_limit > 0 && idle >= idle_limit as u64 && !visible {
-                set_ambient(&app, true);
-            } else if visible && idle < 3 {
-                set_ambient(&app, false);
+            #[cfg(windows)]
+            overlay::keep_display_awake(late_on && late_keep_awake);
+
+            if late_on {
+                sync_late_night_windows(&app);
             }
+
+            if !late_on {
+                if late_idle_minutes > 0 && playing && idle >= late_idle_minutes as u64 * 60 {
+                    apply_late_night(&app, true);
+                    late_on = true;
+                } else if late_on_play && playing && !was_playing {
+                    apply_late_night(&app, true);
+                    late_on = true;
+                }
+            }
+            was_playing = playing;
 
             #[cfg(windows)]
             {
-                let hide_over_fullscreen = {
-                    let runtime = state.runtime.lock().expect("runtime lock");
-                    runtime.settings.hide_over_fullscreen
-                };
-                if visible && hide_over_fullscreen && overlay::exclusive_fullscreen_active() {
+                let locked = overlay::session_locked();
+                if locked && late_on {
+                    apply_late_night(&app, false);
+                    late_on = false;
+                    resume_pending = late_resume;
+                } else if !locked && resume_pending {
+                    resume_pending = false;
+                    apply_late_night(&app, true);
+                    late_on = true;
+                }
+
+                if late_on && late_hide_fullscreen && overlay::exclusive_fullscreen_active() {
+                    apply_late_night(&app, false);
+                    late_on = false;
+                }
+            }
+
+            if !late_on {
+                if idle_limit > 0 && idle >= idle_limit as u64 && !visible {
+                    set_ambient(&app, true);
+                } else if visible && idle < 3 {
                     set_ambient(&app, false);
                 }
+            }
+
+            #[cfg(windows)]
+            if visible && hide_over_fullscreen && overlay::exclusive_fullscreen_active() {
+                set_ambient(&app, false);
             }
         }
     });

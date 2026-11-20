@@ -863,3 +863,80 @@ button.ghost.danger {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.32);
 }
+
+/* ---------------------------------------------------------------- late night */
+
+body[data-window^='late-night-'] {
+  background: #050607;
+}
+
+.late-night {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: rgba(238, 241, 247, 0.92);
+  font-family: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  opacity: 1;
+  transition: opacity 300ms ease;
+  cursor: none;
+}
+
+.late-night.black {
+  background: #050607;
+}
+
+.late-night.dim {
+  background: rgba(6, 8, 12, 0.88);
+}
+
+.late-night.leaving {
+  opacity: 0;
+}
+
+.late-night-head {
+  margin-top: 9vh;
+  text-align: center;
+}
+
+.late-night-date {
+  margin: 0 0 0.35em;
+  font-size: clamp(15px, 1.5vw, 24px);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: rgba(214, 220, 232, 0.62);
+}
+
+.late-night-clock {
+  margin: 0;
+  font-size: clamp(64px, 11vw, 168px);
+  font-weight: 200;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: rgba(240, 243, 249, 0.95);
+}
+
+.late-night-foot {
+  position: absolute;
+  bottom: 5vh;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.34);
+  text-align: center;
+}
+
+.late-night-foot span {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.late-night-foot em {
+  font-style: normal;
+  letter-spacing: 0.03em;
+}

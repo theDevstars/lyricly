@@ -1,5 +1,5 @@
 import { iconFor } from '../icons';
-import { clamp01, type LyricStyle } from '../types';
+import { clamp01, wordGap, type LyricStyle } from '../types';
 
 /**
  * Visual — a centered stack: the previous line above, the live line in the
@@ -129,7 +129,9 @@ export function drawWords(
     ctx.shadowBlur = 0;
 
     x += item.text ? ctx.measureText(item.text).width : width;
-    if (index < items.length - 1) x += gap;
+    if (index < items.length - 1) {
+      x += wordGap(item.text, items[index + 1].text, gap);
+    }
   });
 
   ctx.globalAlpha = 1;

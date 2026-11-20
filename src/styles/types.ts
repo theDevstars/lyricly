@@ -72,5 +72,30 @@ export function flattenWords(lines: LyricLine[]): FlatWord[] {
   return out;
 }
 
+const UNSPACED_RANGES: [number, number][] = [
+  [0x0e00, 0x0e7f], // Thai
+  [0x0e80, 0x0eff], // Lao
+  [0x1000, 0x109f], // Myanmar
+  [0x1780, 0x17ff], // Khmer
+  [0x3040, 0x30ff], // Hiragana and Katakana
+  [0x3400, 0x4dbf],
+  [0x4e00, 0x9fff],
+  [0xf900, 0xfaff],
+  [0x20000, 0x2fa1f],
+];
+
+/** True for scripts that are written without spaces between words. */
+const isUnspacedScript = (ch: string): boolean => {
+  const code = ch.codePointAt(0) ?? 0;
+  return UNSPACED_RANGES.some(([low, high]) => code >= low && code <= high);
+};
+
+/**
+ * Gap between two neighbouring word tokens. Words inside an unspaced-script
+ * run are single characters and must not be spread apart.
+ */
+export const wordGap = (previous: string, next: string, fallback: number): number =>
+  isUnspacedScript(previous.slice(-1)) && isUnspacedScript(next.slice(0, 1)) ? 0 : fallback;
+
 export const easeOutCubic = (t: number): number => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
 export const clamp01 = (t: number): number => Math.min(1, Math.max(0, t));

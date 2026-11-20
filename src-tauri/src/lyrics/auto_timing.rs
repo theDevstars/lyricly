@@ -28,7 +28,20 @@ fn line_weight(text: &str) -> f64 {
         return 1.0;
     }
     // Syllables plus a small per-word cost, so short words are not free.
-    words.iter().map(|word| syllables(word) as f64).sum::<f64>() + words.len() as f64 * 0.5
+    let mut weight =
+        words.iter().map(|word| syllables(word) as f64).sum::<f64>() + words.len() as f64 * 0.5;
+
+    // Scripts without spaces: syllable counting finds no vowels and the whole
+    // line looks like one short word, so each character carries a beat instead.
+    let script_chars = text
+        .chars()
+        .filter(|ch| crate::lyrics::is_unspaced_script(*ch))
+        .count();
+    if script_chars > 1 {
+        weight = weight.max(script_chars as f64 * 0.6);
+    }
+
+    weight
 }
 
 /// Start and end time for each line, monotonic and inside the track.
@@ -133,6 +146,15 @@ mod tests {
         let first = timed[0].1 - timed[0].0;
         let second = timed[1].1 - timed[1].0;
         assert!(second > first, "second={second} should exceed first={first}");
+    }
+
+    #[test]
+    fn scripts_without_spaces_get_time_per_character() {
+        let texts = lines(&["日本語の歌を歌う", "hi"]);
+        let timed = estimate(&texts, 100_000, 0.0);
+        let first = timed[0].1 - timed[0].0;
+        let second = timed[1].1 - timed[1].0;
+        assert!(first > second, "first={first} should exceed second={second}");
     }
 
     #[test]

@@ -1,5 +1,5 @@
 import type { LyricLine } from '../../types';
-import { clamp01, type LyricStyle } from '../types';
+import { clamp01, wordGap, type LyricStyle } from '../types';
 
 const BLUE = '#0a84ff';
 const MAX_BUBBLES = 5;
@@ -43,14 +43,16 @@ function wrap(
 
   for (const word of wordsOf(line)) {
     const width = ctx.measureText(word.text).width;
-    const offset = current.words.length > 0 ? space : 0;
+    const previous =
+      current.words.length > 0 ? current.words[current.words.length - 1].text : '';
+    const offset = current.words.length > 0 ? wordGap(previous, word.text, space) : 0;
 
     if (current.width + offset + width > maxWidth && current.words.length > 0) {
       rows.push(current);
       current = { words: [], width: 0 };
     }
 
-    const x = current.words.length > 0 ? current.width + space : 0;
+    const x = current.words.length > 0 ? current.width + offset : 0;
     current.words.push({ text: word.text, startMs: word.startMs, endMs: word.endMs, x, width });
     current.width = x + width;
   }
