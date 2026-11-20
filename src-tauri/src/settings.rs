@@ -134,6 +134,8 @@ pub struct Settings {
     pub spotify_account: String,
     pub spotify_product: String,
     pub spotify_expires_at_ms: i64,
+    /// Experimental desktop scene, hosted in the wallpaper layer behind the icons.
+    pub scene_enabled: bool,
     /// Rim Light: two-colour glow around the edge of the ambient display.
     pub rim_light_enabled: bool,
     /// Ring thickness in pixels, 2–24.
@@ -215,7 +217,7 @@ impl Default for Settings {
             font_weight: 600,
             wallpaper_layer: false,
             hide_over_fullscreen: true,
-            autostart: false,
+            autostart: true,
             lyrics_allow_genius_page_parsing: false,
             lyrics_provider_order: vec![
                 "cider".into(),
@@ -234,6 +236,7 @@ impl Default for Settings {
             spotify_account: String::new(),
             spotify_product: String::new(),
             spotify_expires_at_ms: 0,
+            scene_enabled: false,
             rim_light_enabled: true,
             rim_light_thickness: 12,
             rim_light_glow: 0.6,

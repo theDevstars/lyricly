@@ -2,14 +2,16 @@
  * Everything you are likely to change lives here.
  * Rebuild after editing: `npm run build`.
  */
-export type NavLink = { label: string; href: string };
+export type NavLink = { label: string; href: string; external?: boolean };
+
+const DISCORD_INVITE = "https://discord.gg/AG7bJvtrrK";
 
 const siteConfig = {
   name: "Lyrica",
   wordmark: "Lyrica",
   tagline: "Time-synced lyrics for your Windows desktop.",
   description:
-    "Lyrica is a Windows tray app that shows time-synced lyrics from Spotify, Apple Music and Cider in animated styles, with ambient Rim Light. Free, no account.",
+    "Lyrica is a Windows tray app that shows time-synced lyrics from Spotify, Apple Music and Cider in animated styles, with ambient Rim Light. Free; a Discord account is required to download.",
 
   /** Canonical origin. Also used for the sitemap, RSS and social cards. */
   url: "https://lyrica-avh2b6.freebuff.site",
@@ -25,7 +27,8 @@ const siteConfig = {
 
   pricing: {
     priceLabel: "Free",
-    priceNote: "Free while Lyrica is in open beta. No account, no subscription.",
+    priceNote:
+      "Free while Lyrica is in open beta. A Discord account is required to download; there is no payment.",
     ctaLabel: "Download for Windows",
     badge: "Free · 3.5 MB",
     /** Optional line under the button, e.g. "One-time purchase. Updates included." */
@@ -40,7 +43,7 @@ const siteConfig = {
      */
     windowsUrl: "/downloads/Lyrica-Setup-2.0.0.exe",
     /** SHA-256 of that exact file. Regenerate whenever you replace the installer. */
-    sha256: "1db8aa9a955135490f79cb6e59dea2801279e5161777f637902240c09417eafa",
+    sha256: "ce16b1efaa33f9dfc8570cd45053033d465bb3cfd944d96aeeac80b644dd9d7e",
     sizeLabel: "3.5 MB",
   },
 
@@ -63,15 +66,18 @@ const siteConfig = {
     { label: "Styles", href: "/#styles" },
     { label: "Rim Light", href: "/#rim-light" },
     { label: "Blog", href: "/blog" },
+    { label: "Account", href: "/account" },
     { label: "FAQ", href: "/faq" },
   ] satisfies NavLink[],
 
   footerLinks: [
     { label: "Blog", href: "/blog" },
     { label: "FAQ", href: "/faq" },
-    { label: "Privacy", href: "/privacy" },
-    { label: "Terms", href: "/terms" },
+    { label: "Privacy Policy", href: "/privacy" },
+    { label: "Account", href: "/account" },
+    { label: "Terms of Service", href: "/terms" },
     { label: "Contact", href: "mailto:hello@lyrica.app" },
+    { label: "Join Discord", href: DISCORD_INVITE, external: true },
   ] satisfies NavLink[],
 
   /** Optional, cookie-free analytics. Leave empty to ship no analytics at all. */
@@ -91,8 +97,13 @@ const siteConfig = {
     twitterHandle: "",
   },
 
+  discord: {
+    /** Non-expiring invite to the public #verify channel. */
+    inviteUrl: DISCORD_INVITE,
+  },
+
   legal: {
-    updated: "November 12, 2026",
+    updated: "November 20, 2026",
     entity: "Lyrica",
     contactEmail: "hello@lyrica.app",
   },

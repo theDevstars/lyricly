@@ -2068,6 +2068,22 @@ pub fn run() {
                 show_main_window(&handle);
             }
 
+            // A normal launch opens the lyrics overlay; a boot launch (the
+            // autostart entry passes --tray) stays in the tray, so logging into
+            // Windows does not throw a window over the desktop. The first launch
+            // shows the Home screen instead of the overlay.
+            let started_in_tray = std::env::args().any(|arg| arg == "--tray");
+            if !started_in_tray && !needs_trial_stamp {
+                let show_overlay = {
+                    let state = handle.state::<Shared>();
+                    let runtime = state.runtime.lock().expect("runtime lock");
+                    runtime.settings.show_on_desktop
+                };
+                if show_overlay {
+                    show_lyrics_window(&handle);
+                }
+            }
+
             start_poller(handle.clone());
             start_spotify_poller(handle.clone());
             set_autostart(autostart_on);
