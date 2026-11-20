@@ -2,6 +2,7 @@
 //! based split for plain LRC, the provider pipeline, and LRCLIB lookups.
 
 pub mod cache;
+pub mod genius;
 pub mod local;
 pub mod lrclib;
 pub mod matcher;
@@ -488,6 +489,8 @@ pub enum ProviderError {
     Timeout,
     #[error("provider restricted the lyrics")]
     Restricted,
+    #[error("the song page can only be read after an explicit opt-in")]
+    OptInRequired,
     #[error("provider error: {0}")]
     Upstream(String),
 }

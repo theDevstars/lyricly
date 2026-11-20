@@ -1,3 +1,4 @@
+mod credentials;
 mod lyrics;
 mod media;
 mod overlay;
@@ -10,7 +11,7 @@ mod autostart;
 use lyrics::{Lyrics, TrackQuery};
 use media::{now_ms, Playback};
 use settings::{Settings, WindowState};
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{
@@ -38,6 +39,8 @@ pub struct Shared {
     pub runtime: Mutex<Runtime>,
     pub cache: Arc<lyrics::cache::Cache>,
     pub pipeline: Arc<lyrics::Pipeline>,
+    /// Live switch for Genius page parsing, so the preference applies without a restart.
+    pub genius_parsing: Arc<AtomicBool>,
 }
 
 #[derive(serde::Serialize, Clone)]
@@ -425,6 +428,10 @@ fn update_settings(app: AppHandle, patch: Settings) {
         let mut runtime = state.runtime.lock().expect("runtime lock");
         runtime.settings = patch;
         runtime.settings.save(&config_path(&app));
+        state.genius_parsing.store(
+            runtime.settings.lyrics_allow_genius_page_parsing,
+            Ordering::Relaxed,
+        );
     }
     set_autostart(patch_autostart(&app));
     let wallpaper = patch_wallpaper(&app);
@@ -530,9 +537,16 @@ pub fn run() {
             let cache = Arc::new(
                 lyrics::cache::Cache::open(&db_path(&handle)).expect("lyrics cache"),
             );
+            let genius_parsing = Arc::new(AtomicBool::new(
+                settings.lyrics_allow_genius_page_parsing,
+            ));
             let providers: Vec<Arc<dyn lyrics::LyricsProvider>> = vec![
                 Arc::new(lyrics::local::LocalProvider::new(cache.clone())),
                 Arc::new(lyrics::lrclib::LrclibProvider::new()),
+                Arc::new(lyrics::genius::GeniusProvider::new(
+                    credentials::read(credentials::GENIUS_TOKEN),
+                    genius_parsing.clone(),
+                )),
             ];
             let pipeline = Arc::new(lyrics::Pipeline::new(
                 providers,
@@ -559,6 +573,7 @@ pub fn run() {
                 }),
                 cache,
                 pipeline,
+                genius_parsing,
             });
 
             tray::build(&handle, false, wallpaper_on, autostart_on)?;

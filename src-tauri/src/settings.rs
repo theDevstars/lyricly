@@ -39,6 +39,9 @@ pub struct Settings {
     pub wallpaper_layer: bool,
     pub hide_over_fullscreen: bool,
     pub autostart: bool,
+    /// Genius text comes from its song pages, which is terms-sensitive:
+    /// off unless the user explicitly agrees.
+    pub lyrics_allow_genius_page_parsing: bool,
     pub window: WindowState,
 }
 
@@ -55,6 +58,7 @@ impl Default for Settings {
             wallpaper_layer: false,
             hide_over_fullscreen: true,
             autostart: false,
+            lyrics_allow_genius_page_parsing: false,
             window: WindowState::default(),
         }
     }
