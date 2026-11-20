@@ -1,0 +1,105 @@
+---
+import siteConfig from "../../../site.config";
+import DownloadButton from "../ui/DownloadButton";
+import DownloadSafety from "../ui/DownloadSafety.astro";
+import { styleCount } from "../../data/styles";
+
+const { pricing, product, systemRequirements, download } = siteConfig;
+const paid = pricing.mode === "paid";
+const trialText = pricing.trial.text.replace("{days}", String(pricing.trial.days));
+---
+
+<section class="section border-t border-line" id="download" aria-labelledby="pricing-title">
+  <div class="wrap">
+    {pricing.sale.enabled && (
+      <div class="mb-8 flex flex-col justify-between gap-3 rounded-2xl border border-[#ff5c8a]/30 bg-[#ff5c8a]/10 p-4 sm:flex-row sm:items-center">
+        <div>
+          <p class="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#ff9dbb]">{pricing.sale.label}</p>
+          <p class="mt-1 text-sm text-white">{pricing.sale.note}</p>
+        </div>
+        {pricing.sale.endsAt && <p class="text-xs text-muted">Ends {pricing.sale.endsAt}</p>}
+      </div>
+    )}
+
+    <div class="pricing-grid">
+      <div class="pricing-copy" data-reveal>
+        <p class="eyebrow">Pricing</p>
+        <h2 id="pricing-title" class="section-title mt-3.5">
+          {paid ? "One install. One price." : "One install. Free."}
+        </h2>
+        <p class="lead mt-5">
+          {paid
+            ? "One purchase, one installer, every current and future style included. No subscription, no seat count, no account to create."
+            : "Lyrica is free while it is in open beta. Every style, Rim Light, Desktop Scene and the Stream window are included. A Discord account is required to download and gets you one free license key; the app itself still needs no account."}
+        </p>
+
+        <ul class="pricing-points">
+          <li>{styleCount} styles, Rim Light, Desktop Scene and the Stream window in one download.</li>
+          {pricing.includes.map((item) => <li>{item}</li>)}
+        </ul>
+
+        <p class="pricing-small">{pricing.footnote}</p>
+
+        <div class="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted">
+          <a href="/compare" class="hover:text-white">Compare options</a>
+          <a href="/requirements" class="hover:text-white">Check requirements</a>
+          <a href="/faq" class="hover:text-white">Read the FAQ</a>
+        </div>
+      </div>
+
+      <div class="price-card" data-spotlight data-reveal style="--reveal-delay: 90ms">
+        <div class="price-card-head">
+          <div>
+            <p class="price-kicker">Lyrica for Windows</p>
+            <p class="price-value">{pricing.priceLabel}</p>
+          </div>
+          <span class="badge badge-neutral">v{product.version}</span>
+        </div>
+
+        <p class="price-note">{pricing.priceNote}</p>
+
+        {pricing.trial.enabled && (
+          <p class="mb-3 rounded-xl border border-[#ff5c8a]/25 bg-[#ff5c8a]/8 px-3 py-2 text-xs text-[#ff9dbb]">{trialText}</p>
+        )}
+
+        <DownloadButton client:visible />
+
+        {pricing.gift.enabled ? (
+          <a href={pricing.gift.url || "/referrals"} class="btn btn-ghost mt-2 h-10 w-full px-4 text-sm">
+            {pricing.gift.label}
+          </a>
+        ) : (
+          <p class="mt-2 text-center text-[0.68rem] text-muted">{pricing.gift.note}</p>
+        )}
+
+        <div class="price-divider"></div>
+
+        <div class="grid grid-cols-2 gap-2 text-[0.7rem]">
+          <div class="rounded-lg border border-line bg-black/20 p-2.5">
+            <p class="text-muted">Updates</p>
+            <p class="mt-0.5 text-white">{pricing.oneTime.updates}</p>
+          </div>
+          <div class="rounded-lg border border-line bg-black/20 p-2.5">
+            <p class="text-muted">Devices</p>
+            <p class="mt-0.5 text-white">{pricing.oneTime.seats}</p>
+          </div>
+        </div>
+
+        <p class="mt-4 text-[0.68rem] leading-relaxed text-muted">{pricing.refund}</p>
+
+        <div class="mt-4">
+          <DownloadSafety />
+        </div>
+
+        <details class="mt-3 text-[0.68rem] text-muted">
+          <summary class="cursor-pointer select-none text-[#b9b9c2]">System requirements</summary>
+          <ul class="mt-2 grid gap-1.5">
+            {systemRequirements.map((requirement) => <li>{requirement}</li>)}
+          </ul>
+        </details>
+
+        <p class="price-foot">Released {new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${product.releaseDate}T12:00:00Z`))} · {download.sizeLabel} · Windows 10 / 11</p>
+      </div>
+    </div>
+  </div>
+</section>

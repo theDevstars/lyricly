@@ -8,7 +8,7 @@ import {
   DEMO_TITLE,
 } from '../demo/demoTrack';
 import type { DemoPlayer } from '../demo/useDemoPlayer';
-import type { LyricStyle } from '../styles/types';
+import type { LyricStyle } from '@lyrica/styles';
 import type { Snapshot } from '../types';
 
 interface PreviewStageProps {

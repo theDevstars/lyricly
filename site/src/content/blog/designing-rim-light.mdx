@@ -1,0 +1,55 @@
+---
+title: "Designing Rim Light: light that belongs to the room"
+description: "Edge glow is easy to make loud. The hard part is making it feel like it comes from the screen, not from an effects panel."
+date: 2026-11-05
+tag: "Design"
+readingTime: "5 min"
+---
+
+The first version of Rim Light was too much. We hung a neon frame around the display and called it ambience. It looked like a gaming keyboard had swallowed a monitor.
+
+The second version was too little. A thin strip of color, tasteful, invisible from a metre away. No point.
+
+The version we shipped sits in the middle, and the middle took longer than either extreme.
+
+## Start with the edge, not the blur
+
+A screen is a light source. Light from a screen lands on the surface behind it. That is the whole idea.
+
+So we draw the color at the border first, at full strength, then let the glow fall off. If you turn the glow down, you still get a crisp edge. If you turn it up, the color spills further into the room without turning into fog.
+
+Thickness and glow are separate controls on purpose. A thick, tight rim reads as hardware. A thin, wide bloom reads as atmosphere. Both are useful, and neither is a preset.
+
+## Two colors, with a bias
+
+Album art rarely has one useful color. It has a dominant tone and a supporting one. Forcing a single color flattens the artwork into a mood ring.
+
+Two colors let us follow that structure. Color A carries 60% of the gradient, color B 40%. The split is fixed, because a slider for it produced a lot of combinations that looked like mistakes.
+
+When Override album color is off, the palette comes from the artwork. When it is on, you choose. The rest of the settings stay put either way.
+
+## Motion should be optional, and slow
+
+Breathe is a five-second cycle. Drift is slower still. Neither is a visualizer. They should register in your peripheral vision, not demand attention every beat.
+
+We added Still because some people want the color and nothing else. That is a valid taste, not an accessibility checkbox. It is also the right setting for recording, where a moving gradient can fight a video encoder.
+
+## The boring constraints
+
+Rim Light has to survive the taskbar. It has to work on a second monitor with a different scale. It has to leave the wallpaper alone. It has to cost almost nothing in frame time.
+
+Most of the work was not the glow. It was making a window that sits behind everything, draws once per frame, and never steals a click. The settings panel is the fun part. The rest is plumbing.
+
+## Settings that did not ship
+
+We built a beat-reactive mode. It looked spectacular in a demo and exhausting after three songs. A screen edge that flashes on every kick turns the room into a strobe, and it fights any video that is already cut to the music. It is not in the app.
+
+We also built a per-corner color mode. Four colors, four corners, a gradient around the frame. It was fun for about a minute and then looked like a gaming peripheral. The two-color version reads as light from the artwork; four colors read as a light show.
+
+A “match the album cover exactly” sampler exists internally, but it produced muddy colors on covers with a lot of grey. The shipped sampler biases toward the most saturated region instead. That is a small lie about the artwork, but a much better result on a wall.
+
+## What we learned
+
+Ambient light is a restraint problem. Every time the effect got more impressive, it got less usable. The settings we kept are the ones you can leave alone.
+
+If you try one thing, try Still with a thick rim and low glow. It looks like the screen is made of colored glass. That is the version we kept coming back to.

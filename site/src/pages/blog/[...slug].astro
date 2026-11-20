@@ -1,0 +1,102 @@
+---
+import { getCollection, render } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import siteConfig from "../../../site.config";
+import { formatDate } from "../../lib/format";
+import { styleCount } from "../../data/styles";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("blog");
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content, headings } = await render(post);
+const published = formatDate(post.data.date);
+const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+
+const schema = {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  headline: post.data.title,
+  description: post.data.description,
+  datePublished: post.data.date.toISOString(),
+  author: { "@type": "Organization", name: siteConfig.name },
+  publisher: { "@type": "Organization", name: siteConfig.name },
+  mainEntityOfPage: new URL(`/blog/${post.id}/`, siteConfig.url).href,
+};
+---
+
+<Base
+  title={`${post.data.title} — ${siteConfig.name}`}
+  description={post.data.description}
+  article
+  jsonLd={schema}
+>
+  <article>
+    <div class="wrap-narrow pt-14 sm:pt-20">
+      <a href="/blog" class="inline-flex items-center gap-1.5 text-xs text-muted transition-colors hover:text-white">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M10 6H2M5 3 2 6l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        All posts
+      </a>
+
+      <p class="eyebrow mt-8">{post.data.tag}</p>
+      <h1 class="mt-4 text-[clamp(2.1rem,5.6vw,3.5rem)] leading-[1.04]">{post.data.title}</h1>
+      <p class="mt-5 max-w-2xl text-base leading-relaxed text-[#b3b3bc]">{post.data.description}</p>
+
+      <div class="mt-6 flex flex-wrap items-center gap-3 text-xs text-muted">
+        <time datetime={post.data.date.toISOString()}>{published}</time>
+        <span class="dot size-[3px] rounded-full bg-white/25" aria-hidden="true"></span>
+        <span>{post.data.readingTime} read</span>
+      </div>
+
+      <div class="post-art mt-9" aria-hidden="true"></div>
+
+      <div class="post-layout mt-10">
+        <div class="prose-lyrica pb-6">
+          <Content />
+        </div>
+        {toc.length > 1 && (
+          <aside class="post-toc" aria-label="On this page">
+            <p class="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-muted">On this page</p>
+            <nav class="mt-3 grid gap-1.5">
+              {toc.map((heading) => (
+                <a
+                  href={`#${heading.slug}`}
+                  class={heading.depth === 3 ? "pl-3 text-[0.72rem] text-muted hover:text-white" : "text-[0.78rem] text-[#c9c9d0] hover:text-white"}
+                >
+                  {heading.text}
+                </a>
+              ))}
+            </nav>
+            <a href="/changelog" class="mt-5 inline-flex text-[0.68rem] text-muted hover:text-white">Changelog →</a>
+          </aside>
+        )}
+      </div>
+
+      <div class="mt-8 rounded-3xl border border-line bg-surface p-6 sm:p-8">
+        <p class="eyebrow">Lyrica</p>
+        <p class="mt-3 font-display text-xl font-bold tracking-[-0.03em] text-white">
+          Time-synced lyrics, already on your desktop.
+        </p>
+        <p class="mt-2 max-w-xl text-sm leading-relaxed text-muted">
+          {styleCount} animated styles, Rim Light, and a player status panel that tells you why lyrics
+          are missing. Free while in beta. Windows 10 and 11.
+        </p>
+        <div class="mt-5 flex flex-wrap gap-3">
+          <a href="/#download" class="btn btn-primary h-10 px-4">Download for Windows</a>
+          <a href="/#styles" class="btn btn-ghost h-10 px-4">See the styles</a>
+        </div>
+      </div>
+
+      <a href="/blog" class="mt-8 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-white">
+        More posts
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M2 6h8M7 3l3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </a>
+    </div>
+  </article>
+</Base>

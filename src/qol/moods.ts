@@ -1,4 +1,4 @@
-import { STYLES } from '../styles/registry';
+import { STYLES } from '@lyrica/styles';
 
 export type Mood = 'calm' | 'steady' | 'high';
 

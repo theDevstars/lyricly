@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Snapshot } from '../types';
-import { getStyle } from '../styles/registry';
+import { getStyle } from '@lyrica/styles';
 import { StyleCanvas } from '../components/StyleCanvas';
 
 /// A display with its own style: the same lyric engine, no controls. The window

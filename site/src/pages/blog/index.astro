@@ -1,0 +1,81 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import siteConfig from "../../../site.config";
+import { formatShortDate } from "../../lib/format";
+
+const posts = (await getCollection("blog")).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
+);
+---
+
+<Base
+  title={`Blog — ${siteConfig.name}`}
+  description="Release notes, engineering decisions and short essays about lyric timing, motion design and building a Windows tray app."
+>
+  <section class="section">
+    <div class="wrap">
+      <header class="max-w-2xl" data-reveal>
+        <p class="eyebrow">Blog</p>
+        <h1 class="mt-4 text-[clamp(2.6rem,7vw,4.4rem)]">Notes from the tray.</h1>
+        <p class="lead mt-5">
+          Release notes, small engineering decisions, and the occasional opinion about lyric
+          timing. Written by the people who build it.
+        </p>
+      </header>
+
+      <div class="mt-12">
+        {
+          posts.map((post, index) => (
+            <article
+              class="post-row group"
+              data-reveal
+              style={{ "--reveal-delay": `${index * 60}ms` }}
+            >
+              <div class="flex items-center gap-3 text-xs text-muted md:block">
+                <time datetime={post.data.date.toISOString()}>{formatShortDate(post.data.date)}</time>
+                <span class="hidden md:mt-1 md:block text-[#8a8a93]">{post.data.tag}</span>
+              </div>
+              <div class="min-w-0">
+                <h2 class="text-[1.35rem] leading-snug tracking-[-0.03em] sm:text-[1.6rem]">
+                  <a
+                    href={`/blog/${post.id}/`}
+                    class="text-white decoration-accent decoration-2 underline-offset-4 group-hover:underline"
+                  >
+                    {post.data.title}
+                  </a>
+                </h2>
+                <p class="mt-2 max-w-2xl text-sm leading-relaxed text-muted">{post.data.description}</p>
+                <p class="mt-2 text-[0.7rem] text-[#8a8a93]">{post.data.readingTime} read</p>
+              </div>
+              <a
+                href={`/blog/${post.id}/`}
+                class="hidden items-center gap-1.5 text-sm text-[#b9b9c2] transition-colors hover:text-white md:inline-flex"
+                aria-label={`Read ${post.data.title}`}
+              >
+                Read
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <path d="M2 6h8M7 3l3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </a>
+            </article>
+          ))
+        }
+      </div>
+
+      <div class="mt-10 flex flex-wrap items-center gap-4 border-t border-line pt-6">
+        <a href="/rss.xml" class="inline-flex items-center gap-2 text-sm text-muted transition-colors hover:text-white">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <circle cx="3.6" cy="12.4" r="1.6" />
+            <path d="M2 6.2a7.8 7.8 0 0 1 7.8 7.8h2A9.8 9.8 0 0 0 2 4.2v2Z" />
+            <path d="M2 2a12 12 0 0 1 12 12h2A14 14 0 0 0 2 0v2Z" />
+          </svg>
+          Subscribe with RSS
+        </a>
+        <a href="/changelog" class="text-sm text-muted transition-colors hover:text-white">
+          Or read the changelog
+        </a>
+      </div>
+    </div>
+  </section>
+</Base>

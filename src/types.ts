@@ -1,3 +1,7 @@
+import type { AudioView, LyricLine } from '@lyrica/styles';
+
+export type { AudioView, LyricLine, LyricWord } from '@lyrica/styles';
+
 export type PlaybackStatus = 'playing' | 'paused' | 'stopped' | 'none';
 
 export interface Playback {
@@ -9,33 +13,6 @@ export interface Playback {
   positionMs: number;
   durationMs: number;
   sampledAtMs: number;
-}
-
-export interface LyricWord {
-  text: string;
-  startMs: number;
-  endMs: number;
-}
-
-export interface LyricLine {
-  startMs: number;
-  endMs: number;
-  text: string;
-  words: LyricWord[];
-  exact: boolean;
-}
-
-export interface AudioView {
-  /** False when no device is open or nothing is audibly playing. */
-  active: boolean;
-  level: number;
-  bass: number;
-  mid: number;
-  high: number;
-  beat: boolean;
-  bpm: number;
-  /** 16 log-spaced bands, 0..1. */
-  bands: number[];
 }
 
 export interface Lyrics {

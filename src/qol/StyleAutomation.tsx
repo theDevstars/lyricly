@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import type { Snapshot } from '../types';
 import { activeLineIndex, playbackPosition } from '../lib/timing';
-import { detectSections, repeats, normalise } from '../styles/lib/sections';
-import { energyOf } from '../styles/lib/energy';
+import { detectSections, repeats, normalise } from '@lyrica/styles';
+import { energyOf } from '@lyrica/styles';
 import { moodOf, pick, poolFor } from './moods';
 import { setStyle } from '../lib/api';
 

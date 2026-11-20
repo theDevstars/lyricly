@@ -1,0 +1,69 @@
+---
+import Base from "../layouts/Base.astro";
+import PageHero from "../components/ui/PageHero.astro";
+import FaqBrowser from "../components/faq/FaqBrowser";
+import { faqItems } from "../data/faq";
+import siteConfig from "../../site.config";
+
+const schema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqItems.map((item) => ({
+    "@type": "Question",
+    name: item.question,
+    acceptedAnswer: { "@type": "Answer", text: item.answer },
+  })),
+};
+
+const supportMailto = `mailto:${siteConfig.legal.contactEmail}?subject=${encodeURIComponent(
+  "Lyrica support — Windows version, player and track",
+)}&body=${encodeURIComponent(
+  "Windows version:\nPlayer:\nTrack that misbehaved:\n\nWhat happened:\n\nStatus panel screenshot:",
+)}`;
+---
+
+<Base
+  title={`FAQ — ${siteConfig.name}`}
+  description="Where lyrics come from, why they can be missing or out of time, which players work, system requirements, accounts, refunds and uninstalling."
+  jsonLd={schema}
+>
+  <PageHero
+    eyebrow="FAQ"
+    title="Questions, answered."
+    lead="Short answers to the things people ask before installing, and the things they ask after. Search by player, symptom or setting."
+  >
+    <a href="/troubleshoot" class="btn btn-primary h-10 px-4">Use the troubleshooter</a>
+    <a href="/setup" class="btn btn-ghost h-10 px-4">Set it up</a>
+  </PageHero>
+
+  <section class="section pt-10">
+    <div class="wrap">
+      <FaqBrowser client:load items={faqItems} />
+    </div>
+  </section>
+
+  <section class="pb-20">
+    <div class="wrap-narrow">
+      <div class="rounded-3xl border border-line bg-surface p-6 sm:p-8">
+        <h2 class="text-xl tracking-[-0.03em]">Still stuck?</h2>
+        <p class="mt-2 max-w-xl text-sm leading-relaxed text-muted">
+          Ask in the Lyrica Discord, where other people using the app can help with players,
+          timing and setup. For a private question, email support with your Windows version, the
+          player you use and the track that misbehaved.
+        </p>
+        <div class="mt-5 flex flex-wrap gap-3">
+          <a
+            href={siteConfig.discord.inviteUrl}
+            target="_blank"
+            rel="noreferrer"
+            class="btn btn-primary"
+          >
+            Join the Discord
+          </a>
+          <a href={supportMailto} class="btn btn-ghost">Email support</a>
+          <a href="/troubleshoot" class="btn btn-ghost">Troubleshoot first</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>

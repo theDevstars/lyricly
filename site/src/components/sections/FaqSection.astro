@@ -1,0 +1,29 @@
+---
+import { faqItems } from "../../data/faq";
+import FaqAccordion from "../ui/FaqAccordion.astro";
+---
+
+<section class="section border-t border-line" id="faq" aria-labelledby="faq-title">
+  <div class="wrap">
+    <div class="faq-grid">
+      <div class="faq-intro" data-reveal>
+        <p class="eyebrow">FAQ</p>
+        <h2 id="faq-title" class="section-title mt-3.5">Good questions, short answers.</h2>
+        <p class="lead mt-5">
+          Everything about players, timing, capture and what leaves your PC. If something is
+          missing, the full page has the long version.
+        </p>
+        <a href="/faq" class="btn btn-ghost mt-6 h-10 px-4">
+          Read the full FAQ
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M2 6h8M7 3l3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </a>
+      </div>
+
+      <div data-reveal style="--reveal-delay: 100ms">
+        <FaqAccordion items={faqItems} idPrefix="home-faq" />
+      </div>
+    </div>
+  </div>
+</section>

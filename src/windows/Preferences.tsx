@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CiderStatus, Settings, Snapshot, SpotifyStatus } from '../types';
-import { GROUPS, getStyle, STYLES, stylesIn } from '../styles/registry';
+import { GROUPS, getStyle, STYLES, stylesIn } from '@lyrica/styles';
 import { StylePreview } from '../components/StylePreview';
 import { QolPanel } from '../qol/QolPanel';
 import { EffectsLayer } from '../effects/EffectsLayer';

@@ -1,0 +1,56 @@
+---
+import siteConfig from "../../site.config";
+import HeroDemo from "./demos/HeroDemo";
+
+const words = ["Watch", "every", "style", "before", "you", "pick"];
+const ctaLabel = siteConfig.product.kind === "free" ? "Download free" : `Buy · ${siteConfig.pricing.priceLabel}`;
+---
+
+<section class="hero" aria-labelledby="hero-title">
+  <div class="wrap">
+    <p class="hero-meta">
+      <span>Windows tray app</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Spotify, Apple Music and Cider</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Windows 10 / 11</span>
+    </p>
+
+    <h1 id="hero-title" class="hero-title display mt-5">
+      {
+        words.map((word, index) => (
+          <span class="word" style={{ "--word-delay": `${90 + index * 85}ms` }}>
+            {word}
+            {index === words.length - 1 && <span class="text-accent">.</span>}
+            {index < words.length - 1 && " "}
+          </span>
+        ))
+      }
+    </h1>
+
+    <p class="lead mt-6 max-w-[38rem]" data-reveal style="--reveal-delay: 220ms">
+      Lyrica puts the words on your screen in time with the music. Try the animated styles right
+      here, find the one that fits, then let it live in your tray.
+    </p>
+
+    <div class="mt-7 flex flex-wrap items-center gap-3" data-reveal style="--reveal-delay: 300ms">
+      <a href={siteConfig.download.windowsUrl} class="btn btn-primary h-11 px-5" download data-download>
+        {ctaLabel}
+        <span class="price-tag">{siteConfig.pricing.priceLabel}</span>
+      </a>
+      <a href="#styles" class="btn btn-ghost h-11 px-5">
+        Browse the styles
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M6 1v10M2 7l4 4 4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </a>
+      <span class="text-xs text-muted">
+        {siteConfig.pricing.mode === "paid" && siteConfig.pricing.trial.enabled
+          ? `Try free for ${siteConfig.pricing.trial.days} days. No account needed.`
+          : `Free while in open beta · Discord account required · ${siteConfig.download.sizeLabel}`}
+      </span>
+    </div>
+
+    <HeroDemo client:idle />
+  </div>
+</section>

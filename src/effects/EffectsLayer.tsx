@@ -1,5 +1,5 @@
 import type { Snapshot } from '../types';
-import { EFFECTS } from './registry';
+import { EFFECTS } from '@lyrica/styles';
 
 interface EffectsLayerProps {
   snapshot: Snapshot;

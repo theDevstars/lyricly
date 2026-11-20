@@ -1,0 +1,17 @@
+---
+import { docs } from "../../data/docs";
+interface Props { current?: string }
+const { current } = Astro.props;
+---
+
+<nav class="docs-nav" aria-label="Documentation">
+  <a href="/docs" aria-current={current === "index" ? "page" : undefined}>Overview</a>
+  {docs.map((topic) => (
+    <a href={`/docs/${topic.slug}`} aria-current={current === topic.slug ? "page" : undefined}>
+      {topic.title}
+    </a>
+  ))}
+  <a href="/docs/shortcuts" aria-current={current === "shortcuts" ? "page" : undefined}>
+    Shortcut sheet
+  </a>
+</nav>

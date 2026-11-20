@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { nudge, pinStyle, setStyle, updateSettings } from '../lib/api';
-import { getStyle, STYLES } from '../styles/registry';
+import { getStyle, STYLES } from '@lyrica/styles';
 import { DEMO_DURATION_MS } from '../demo/demoTrack';
 import { useDemoPlayer } from '../demo/useDemoPlayer';
 import type { Snapshot } from '../types';

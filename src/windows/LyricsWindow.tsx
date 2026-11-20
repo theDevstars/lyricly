@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { listen } from '@tauri-apps/api/event';
 import type { Snapshot } from '../types';
-import { getStyle, STYLES } from '../styles/registry';
+import { getStyle, STYLES } from '@lyrica/styles';
 import { StyleCanvas } from '../components/StyleCanvas';
 import { Preferences } from './Preferences';
 import { forgetSong, nudge, rememberSong, setStyle, togglePlayPause } from '../lib/api';

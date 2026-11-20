@@ -1,4 +1,4 @@
-import type { Palette } from '../styles/types';
+import type { Palette } from '@lyrica/styles';
 import type { Settings } from '../types';
 
 export interface Rgb {

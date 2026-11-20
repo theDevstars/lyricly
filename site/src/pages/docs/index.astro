@@ -1,0 +1,43 @@
+---
+import Base from "../../layouts/Base.astro";
+import PageHero from "../../components/ui/PageHero.astro";
+import DocsSidebar from "../../components/docs/DocsSidebar.astro";
+import { docs } from "../../data/docs";
+import siteConfig from "../../../site.config";
+---
+
+<Base
+  title={`Docs — ${siteConfig.name}`}
+  description="Short Lyrica documentation for settings, styles, accounts, streaming, hotkeys and the command palette."
+>
+  <PageHero
+    eyebrow="Docs"
+    title="The app, without the guesswork."
+    lead="Short pages for the settings people actually change, the shortcuts worth learning and the parts of Windows that explain what is happening."
+  >
+    <a href="/docs/shortcuts" class="btn btn-primary h-10 px-4">Shortcut sheet</a>
+    <a href="/troubleshoot" class="btn btn-ghost h-10 px-4">Troubleshooter</a>
+  </PageHero>
+
+  <section class="section pt-10">
+    <div class="wrap docs-layout">
+      <DocsSidebar current="index" />
+      <div>
+        <div class="page-card-grid">
+          {docs.map((topic) => (
+            <a href={`/docs/${topic.slug}`} class="page-card hover:border-white/20">
+              <p class="eyebrow">{topic.title}</p>
+              <h2 class="mt-2 text-lg tracking-[-0.02em]">{topic.summary}</h2>
+              <p class="mt-2 text-xs leading-relaxed text-muted">{topic.body[0]}</p>
+              <span class="mt-4 inline-flex text-xs text-[#b9b9c2]">Read →</span>
+            </a>
+          ))}
+        </div>
+        <div class="mt-6 rounded-2xl border border-line bg-surface p-5 text-xs leading-relaxed text-muted">
+          These pages describe the current Windows app. If a control has moved, the status panel and
+          command palette are the quickest way to find it.
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>

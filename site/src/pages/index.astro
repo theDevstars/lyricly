@@ -1,0 +1,95 @@
+---
+import Base from "../layouts/Base.astro";
+import Hero from "../components/Hero.astro";
+import StyleOfDay from "../components/playground/StyleOfDay";
+import Playground from "../components/playground/Playground";
+import EasterEggs from "../components/playground/EasterEggs";
+import Gallery from "../components/gallery/Gallery";
+import StatusPanel from "../components/StatusPanel";
+import RimLight from "../components/RimLight";
+import Showcase from "../components/sections/Showcase.astro";
+import WorksWith from "../components/sections/WorksWith.astro";
+import Streaming from "../components/sections/Streaming.astro";
+import Setup from "../components/sections/Setup.astro";
+import Pricing from "../components/sections/Pricing.astro";
+import FaqSection from "../components/sections/FaqSection.astro";
+import ScrollStyleScene from "../components/playground/ScrollStyleScene";
+import SetupOfWeek from "../components/setups/SetupOfWeek.astro";
+import CommunitySection from "../components/community/CommunitySection.astro";
+import ReviewWall from "../components/reviews/ReviewWall.astro";
+import { styleCount } from "../data/styles";
+import siteConfig from "../../site.config";
+
+const schema = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: siteConfig.name,
+  applicationCategory: "MultimediaApplication",
+  operatingSystem: "Windows 10, Windows 11",
+  description: siteConfig.description,
+  url: siteConfig.url,
+  downloadUrl: new URL(siteConfig.download.windowsUrl, siteConfig.url).href,
+  softwareVersion: siteConfig.product.version,
+  datePublished: siteConfig.product.releaseDate,
+  offers: {
+    "@type": "Offer",
+    price: siteConfig.product.kind === "free" ? "0" : siteConfig.pricing.priceLabel.replace(/[^0-9.]/g, ""),
+    priceCurrency: "USD",
+  },
+  featureList: [
+    "Time-synced lyrics from Windows media sessions",
+    `${styleCount} animated lyric styles`,
+    "Rim Light ambient edge lighting",
+    "Per-song timing offset",
+    "OBS browser source and capturable Stream window",
+  ],
+};
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: siteConfig.name,
+  url: siteConfig.url,
+};
+---
+
+<Base
+  title={`${siteConfig.name} — Watch every style before you pick.`}
+  description={siteConfig.description}
+  jsonLd={[schema, websiteSchema]}
+>
+  <Hero />
+  <StyleOfDay client:visible />
+
+  <section class="section border-t border-line" aria-labelledby="home-playground-title">
+    <div class="wrap">
+      <div class="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p class="eyebrow">Playground</p>
+          <h2 id="home-playground-title" class="section-title mt-2">Try it before you install it.</h2>
+          <p class="lead mt-3 max-w-2xl">
+            Every style below is the real renderer, running on invented lyrics. Change the colours,
+            scrub the track, then share the exact look.
+          </p>
+        </div>
+        <a href="/playground" class="btn btn-ghost h-10 shrink-0 px-4">Open the full playground</a>
+      </div>
+      <Playground client:visible compact />
+    </div>
+  </section>
+
+  <Gallery client:visible />
+  <StatusPanel client:visible />
+  <RimLight client:visible />
+  <Showcase />
+  <WorksWith />
+  <ScrollStyleScene client:visible />
+  <Streaming />
+  <Setup />
+  <SetupOfWeek />
+  <Pricing />
+  <CommunitySection />
+  {siteConfig.features.reviews && <ReviewWall />}
+  <FaqSection />
+  <EasterEggs client:idle />
+</Base>

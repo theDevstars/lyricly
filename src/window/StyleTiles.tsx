@@ -1,4 +1,4 @@
-import { GROUPS, stylesIn } from '../styles/registry';
+import { GROUPS, stylesIn } from '@lyrica/styles';
 
 interface StyleTilesProps {
   activeId: string;

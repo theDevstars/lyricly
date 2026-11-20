@@ -1,0 +1,49 @@
+---
+import Base from "../layouts/Base.astro";
+import PageHero from "../components/ui/PageHero.astro";
+import Pricing from "../components/sections/Pricing.astro";
+import siteConfig from "../../site.config";
+---
+
+<Base
+  title={`Pricing — ${siteConfig.name}`}
+  description="Lyrica pricing, what is included, the refund position and the current open-beta offer."
+>
+  <PageHero
+    eyebrow="Pricing"
+    title={siteConfig.pricing.mode === "paid" ? "One price. No subscription." : "Free while it is in beta."}
+    lead={
+      siteConfig.pricing.mode === "paid"
+        ? "A single one-time license, updates included, with a 14-day refund window. No account, no recurring charge."
+        : "Every style, Rim Light, Desktop Scene and the Stream window are free during open beta. A Discord account is required to download and gets one free key; the app itself needs no account."
+    }
+  >
+    <a href="/compare" class="btn btn-primary h-10 px-4">Compare options</a>
+    <a href="/requirements" class="btn btn-ghost h-10 px-4">Check requirements</a>
+  </PageHero>
+
+  <Pricing />
+
+  <section class="pb-20">
+    <div class="wrap max-w-3xl">
+      <h2 class="text-xl tracking-[-0.03em]">What “free beta” means here</h2>
+      <div class="prose-lyrica mt-4 text-sm">
+        <p>
+          The app is fully usable and does not expire. There is no trial countdown, no feature
+          locked behind a payment and no card form. A Discord sign-in gates the installer and issues
+          one free license key. That key is checked by the app.
+        </p>
+        <p>
+          If a paid version launches, existing beta keys keep working under the terms published at
+          that time. We will not silently turn a free install into a subscription. Any future price,
+          gift option and refund window will appear on this page before checkout opens.
+        </p>
+        <p>
+          Gift checkout and the referral programme are closed today because there is nothing to buy.
+          The buttons on the pricing card are placeholders until those programs are enabled in
+          configuration with a real hosted checkout.
+        </p>
+      </div>
+    </div>
+  </section>
+</Base>

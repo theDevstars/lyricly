@@ -1,0 +1,61 @@
+---
+title: "Lyrica 2.0: four screens, a status panel, and light"
+description: "Native Design styles, a player status panel that tells you why lyrics are missing, and Rim Light for the edges of your display."
+date: 2026-11-12
+tag: "Release"
+readingTime: "3 min"
+---
+
+Lyrica 2.0 is out. It is still a tray app. It still has no account. Three things changed enough to earn the version number.
+
+## Four styles that look like screens
+
+Native Design is a new group of styles that turn the song into a phone screen. Messages types the lyric as a conversation. Money clears it like a payment. Map draws the route while you listen. Notifications stacks the lines like lock-screen alerts.
+
+They have their own colors. Always. Aesthetic settings still apply to every other style, but these four keep the palette of the screen they are imitating. That is the point of them.
+
+You can preview all four in the [style gallery](/#styles) on the home page.
+
+## A status panel that explains itself
+
+The most common support question was some version of "why are the lyrics not showing?" The answer was always one of four things, and there was no way to tell which.
+
+Now the player status panel checks each step in order: the player is open, Lyrica can read the media session, a track is playing, and timed lyrics were found. The first row that fails is the one to fix.
+
+It also holds the timing nudge. If the words are early or late, move them a second at a time. The offset belongs to that song and disappears on the next track.
+
+## Rim Light
+
+Rim Light puts the album's color around the edge of your display. Two colors, a slow breathe or drift, adjustable thickness and glow, and a per-display setting. It is its own window, so it sits behind your apps and never intercepts a click.
+
+There is a full preview on the [Rim Light section](/#rim-light), including the settings panel. Drag the sliders. That is the real behavior, not a video.
+
+## The small things
+
+- The Stream window now works as an OBS browser source.
+- Hide from screen capture is a single toggle in settings.
+- Lyrics are cached per track, so repeat plays start instantly.
+- The download page publishes the installer's SHA-256, and updates arrive through the app.
+- Fixed: the overlay no longer appears over exclusive-fullscreen games.
+
+## What did not change
+
+The app is still tray-first. There is still no account, no onboarding wizard that asks for your music service, and no telemetry. The overlay still reads the Windows media session, which means it does not care whether you use Spotify, Apple Music, Cider or a browser tab. If a player appears in the Windows media flyout, it can feed the lyrics.
+
+The installer is still a single Windows executable. The old build is replaced in place, and your settings, pinned style and cached lyrics stay where they were. If you are on 1.1, you do not need to uninstall first.
+
+We also kept the plain-text lyric fallback. A song with no timing data can still show its words, without pretending to know when each line starts. A wrong animation is worse than a still one, and that rule did not change with the version number.
+
+## A note on the status panel
+
+The status panel is not a diagnostic console. It has four rows because four things have to be true for lyrics to appear, and the first false row is the one worth fixing. We resisted adding a fifth row for “provider responded slowly” because it would turn a clear answer into a log file. The copy-diagnostics button gives support the detail without making everyone read it.
+
+If the panel says the player is fine and the track is fine, but there is no timed lyric, the song is the problem. That is a useful answer too. It means the app is doing its job and the catalogue is incomplete.
+
+## Getting it
+
+Lyrica 2.0 is a free update for everyone. New installs take about a minute, and there is a short tour on first run. If you are updating from 1.x, open the tray menu and choose Check for updates, or install the current build over the old one. Your settings survive either path.
+
+The download page lists the file name, size, version, release date and SHA-256, so you can verify what you downloaded before running it. If the hash does not match, delete the file and download it again from this page rather than from a mirror.
+
+[Download for Windows](/#download) · [What changed](/changelog)

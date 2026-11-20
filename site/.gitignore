@@ -1,0 +1,11 @@
+node_modules/
+dist/
+worker-dist/
+.astro/
+.dev.vars
+.browsers/
+lh-*.json
+*.log
+.DS_Store
+
+.wrangler/

@@ -8,7 +8,7 @@ import { LyricsWindow } from './windows/LyricsWindow';
 import { LyricsLayerWindow } from './windows/LyricsLayerWindow';
 import { StreamWindow } from './windows/StreamWindow';
 import { StyleAutomation } from './qol/StyleAutomation';
-import { STYLES } from './styles/registry';
+import { STYLES } from '@lyrica/styles';
 import { AmbientWindow } from './windows/AmbientWindow';
 import { SceneRoot } from './scene/SceneRoot';
 import { LateNightWindow } from './windows/LateNightWindow';

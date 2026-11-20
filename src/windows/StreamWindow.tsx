@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { StyleCanvas } from '../components/StyleCanvas';
-import { getStyle } from '../styles/registry';
+import { getStyle } from '@lyrica/styles';
 import type { Snapshot } from '../types';
 
 /**

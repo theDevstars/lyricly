@@ -1,0 +1,26 @@
+---
+import Base from "../layouts/Base.astro";
+import PageHero from "../components/ui/PageHero.astro";
+import Tutorials from "../components/tutorials/Tutorials";
+import siteConfig from "../../site.config";
+---
+
+<Base
+  title={`Video tutorials — ${siteConfig.name}`}
+  description="Short Lyrica tutorials for setup, Rim Light, Desktop Scene and OBS, loaded only when you press play."
+>
+  <PageHero
+    eyebrow="Video tutorials"
+    title="Watch it once, then do it."
+    lead="A one-minute setup, plus short clips for Rim Light, Desktop Scene and streaming. The video player loads only after you press play."
+  >
+    <a href="/setup" class="btn btn-primary h-10 px-4">Use the written guide</a>
+    <a href="/docs" class="btn btn-ghost h-10 px-4">Read the docs</a>
+  </PageHero>
+
+  <section class="section pt-10">
+    <div class="wrap">
+      <Tutorials client:visible />
+    </div>
+  </section>
+</Base>

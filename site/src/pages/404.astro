@@ -1,0 +1,31 @@
+---
+import Base from "../layouts/Base.astro";
+import Logo from "../components/Logo.astro";
+---
+
+<Base
+  title="Page not found — Lyrica"
+  description="This page is not here. Head back to the styles, the FAQ or the blog."
+  noindex
+>
+  <section class="relative overflow-hidden">
+    <div class="glow-radial pointer-events-none absolute inset-0 -z-10" aria-hidden="true"></div>
+    <div class="wrap flex min-h-[70vh] flex-col items-center justify-center py-20 text-center">
+      <p class="glitch-mark" aria-hidden="true">404</p>
+      <p class="eyebrow mt-2">Off the setlist</p>
+      <h1 class="mt-4 max-w-xl text-[clamp(2rem,5vw,3rem)]">This page is not here.</h1>
+      <p class="lead mt-4 max-w-md">
+        The link may be old, or the page moved. The styles, the FAQ and the blog are all still
+        where you left them.
+      </p>
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <a href="/" class="btn btn-primary h-11 px-5">Back home</a>
+        <a href="/#styles" class="btn btn-ghost h-11 px-5">See the styles</a>
+        <a href="/faq" class="btn btn-ghost h-11 px-5">FAQ</a>
+      </div>
+      <div class="mt-12 opacity-60">
+        <Logo />
+      </div>
+    </div>
+  </section>
+</Base>

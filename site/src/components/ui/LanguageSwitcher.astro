@@ -1,0 +1,24 @@
+---
+import siteConfig from "../../../site.config";
+const { locales, defaultLocale, machineTranslated } = siteConfig.i18n;
+interface Props { current?: string }
+const { current = defaultLocale } = Astro.props;
+---
+
+<nav aria-label="Language" class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.68rem]">
+  {locales.map((locale, index) => (
+    <>
+      {index > 0 && <span class="text-[#3a3a40]" aria-hidden="true">/</span>}
+      <a
+        href={locale.code === defaultLocale ? "/" : `/${locale.code}/`}
+        hreflang={locale.code}
+        lang={locale.code}
+        class={locale.code === current ? "text-white" : "text-muted hover:text-white"}
+        aria-current={locale.code === current ? "page" : undefined}
+      >
+        {locale.code.toUpperCase()}
+        {machineTranslated.includes(locale.code) && <span class="sr-only"> (machine translated)</span>}
+      </a>
+    </>
+  ))}
+</nav>

@@ -1,0 +1,219 @@
+/* Light theme
+   The product art and lyric stages stay dark on purpose: they are screens.
+   Page chrome, cards, prose and controls follow the theme tokens. */
+
+html[data-theme="light"] {
+  --color-bg: #f7f3ec;
+  --color-surface: #fffdf8;
+  --color-surface-2: #f1ebe1;
+  --color-surface-3: #e8e0d4;
+  --color-line: rgba(25, 20, 15, 0.12);
+  --color-line-strong: rgba(25, 20, 15, 0.22);
+  --color-muted: #625a50;
+  --color-text: #17130f;
+  --color-accent: #b31247 !important;
+  --accent-rgb: 179 18 71 !important;
+  color-scheme: light;
+  background: var(--color-bg);
+  scrollbar-color: #b8aea0 var(--color-bg);
+}
+
+html[data-theme="light"] body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+html[data-theme="light"] h1,
+html[data-theme="light"] h2,
+html[data-theme="light"] h3,
+html[data-theme="light"] h4,
+html[data-theme="light"] .text-white,
+html[data-theme="light"] .prose-lyrica strong,
+html[data-theme="light"] .prose-lyrica a,
+html[data-theme="light"] .post-title,
+html[data-theme="light"] .faq-trigger {
+  color: var(--color-text);
+}
+
+html[data-theme="light"] .site-header.is-scrolled {
+  background: rgba(247, 243, 236, 0.86);
+  border-bottom-color: var(--color-line);
+}
+
+html[data-theme="light"] .announcement,
+html[data-theme="light"] .mobile-nav {
+  background: var(--color-surface);
+}
+
+html[data-theme="light"] .announcement p {
+  color: var(--color-text);
+}
+
+html[data-theme="light"] .btn-primary {
+  background: #17130f;
+  border-color: #17130f;
+  color: #fffdf8;
+}
+
+html[data-theme="light"] .btn-primary:hover {
+  background: #332a23;
+  border-color: #332a23;
+}
+
+html[data-theme="light"] .btn-primary .price-tag {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fffdf8;
+}
+
+html[data-theme="light"] .btn-ghost {
+  background: rgba(23, 19, 15, 0.035);
+  border-color: var(--color-line-strong);
+  color: var(--color-text);
+}
+
+html[data-theme="light"] .btn-ghost:hover {
+  background: rgba(23, 19, 15, 0.08);
+  border-color: rgba(23, 19, 15, 0.3);
+}
+
+html[data-theme="light"] .badge {
+  color: #8d0f39;
+}
+
+html[data-theme="light"] .badge-neutral {
+  background: rgba(23, 19, 15, 0.05);
+  color: var(--color-text);
+}
+
+html[data-theme="light"] .brand-pill,
+html[data-theme="light"] .code-chip,
+html[data-theme="light"] .filter-chip {
+  color: var(--color-text);
+  background: var(--color-surface-2);
+}
+
+html[data-theme="light"] .step-card,
+html[data-theme="light"] .roadmap-item,
+html[data-theme="light"] .roadmap-column,
+html[data-theme="light"] .page-card,
+html[data-theme="light"] .video-card {
+  background: var(--color-surface);
+}
+
+html[data-theme="light"] .setup-panel {
+  background:
+    radial-gradient(90% 80% at 0% 0%, rgb(var(--accent-rgb) / 0.09), transparent 55%),
+    linear-gradient(180deg, #fffdf8, #f4ede3);
+}
+
+html[data-theme="light"] .price-card {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgb(var(--accent-rgb) / 0.08), transparent 55%),
+    var(--color-surface);
+  border-color: var(--color-line);
+  box-shadow: 0 24px 70px -40px rgba(37, 27, 18, 0.35);
+}
+
+html[data-theme="light"] .price-value,
+html[data-theme="light"] .price-kicker,
+html[data-theme="light"] .price-subhead,
+html[data-theme="light"] .price-card .text-white {
+  color: var(--color-text);
+}
+
+html[data-theme="light"] .price-note,
+html[data-theme="light"] .price-foot,
+html[data-theme="light"] .pricing-points li,
+html[data-theme="light"] .pricing-small,
+html[data-theme="light"] .showcase-points li {
+  color: var(--color-muted);
+}
+
+html[data-theme="light"] .preview-stage .text-white,
+html[data-theme="light"] .playground-stage .text-white,
+html[data-theme="light"] .setup-art .text-white {
+  color: #fff;
+}
+
+html[data-theme="light"] .prose-lyrica {
+  color: #3d352d;
+}
+
+html[data-theme="light"] .prose-lyrica code {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+html[data-theme="light"] .prose-lyrica blockquote {
+  color: #3d352d;
+}
+
+html[data-theme="light"] .faq-answer,
+html[data-theme="light"] .post-row time,
+html[data-theme="light"] .post-row .text-muted {
+  color: var(--color-muted);
+}
+
+html[data-theme="light"] .preview-modal,
+html[data-theme="light"] .video-dialog,
+html[data-theme="light"] .setup-lightbox {
+  background: rgba(247, 243, 236, 0.9);
+}
+
+html[data-theme="light"] .preview-dialog,
+html[data-theme="light"] .video-dialog-panel,
+html[data-theme="light"] .setup-lightbox-panel {
+  background: var(--color-surface);
+  border-color: var(--color-line);
+}
+
+html[data-theme="light"] .preview-close {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+html[data-theme="light"] .skip-link {
+  background: #17130f;
+  color: #fffdf8;
+}
+
+html[data-theme="light"] .discord-stat {
+  background: rgba(88, 101, 242, 0.08);
+  color: #3f45a8;
+}
+
+html[data-theme="light"] .motion-toggle {
+  color: var(--color-muted);
+  background: rgba(23, 19, 15, 0.04);
+}
+
+html[data-theme="light"] .motion-toggle:hover {
+  color: var(--color-text);
+  border-color: var(--color-line-strong);
+}
+
+/* Tailwind arbitrary colours used in the new marketing components. */
+html[data-theme="light"] [class*="text-[#b9b9c2]"],
+html[data-theme="light"] [class*="text-[#c9c9d0]"],
+html[data-theme="light"] [class*="text-[#d5d5dc]"],
+html[data-theme="light"] [class*="text-[#e7e7ec]"],
+html[data-theme="light"] [class*="text-[#f2f2f5]"],
+html[data-theme="light"] [class*="text-[#b3b3bc]"],
+html[data-theme="light"] [class*="text-[#a3a3ad]"],
+html[data-theme="light"] [class*="text-[#9b9ba5]"],
+html[data-theme="light"] [class*="text-[#8a8a93]"] {
+  color: var(--color-muted);
+}
+
+html[data-theme="light"] [class*="text-[#777781]"] {
+  color: #746b60;
+}
+
+html[data-theme="light"] [class*="bg-[#08080a]"],
+html[data-theme="light"] [class*="bg-[#0b0b0c]"] {
+  background-color: var(--color-surface-2);
+}
+
+html[data-theme="light"] [class*="border-[#ff5c8a]"] {
+  border-color: rgb(var(--accent-rgb) / 0.28);
+}

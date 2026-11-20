@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { LyricLine } from '../types';
-import type { LyricStyle, StyleState } from '../styles/types';
+import type { LyricStyle, StyleState } from '@lyrica/styles';
 import { activeLineIndex, wordAt } from '../lib/timing';
 
 const LOOP_MS = 9000;

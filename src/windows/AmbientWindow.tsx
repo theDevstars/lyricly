@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import type { Snapshot } from '../types';
-import { getStyle } from '../styles/registry';
+import { getStyle } from '@lyrica/styles';
 import { StyleCanvas } from '../components/StyleCanvas';
 import { resolvePalette } from '../lib/colors';
 

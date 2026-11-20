@@ -1,0 +1,78 @@
+---
+import siteConfig from "../../../site.config";
+
+const steps: { title: string; copy: string }[] = [
+  {
+    title: "Download the installer",
+    copy: "Sign in with Discord, then grab the setup file below. Windows may ask for permission before it runs.",
+  },
+  {
+    title: "See what it does",
+    copy: "A short tour runs on first launch. Take it, or skip straight in.",
+  },
+  {
+    title: "Connect your player",
+    copy: "Start a song. Lyrica picks it up from Windows' media controls. Nothing to sign in to.",
+  },
+  {
+    title: "Pick a style",
+    copy: "Open the gallery from the tray. Every change lands on your desktop immediately.",
+  },
+  {
+    title: "Press play",
+    copy: "That is the whole setup. It starts with Windows from now on and waits in the tray.",
+  },
+];
+
+if (siteConfig.product.kind === "paid") {
+  steps.splice(4, 0, {
+    title: "Enter your license key",
+    copy: "Paste the key from your receipt. It activates offline and stays on this PC.",
+  });
+}
+---
+
+<section class="section" id="setup" aria-labelledby="setup-title">
+  <div class="wrap">
+    <div class="setup-panel" data-reveal>
+      <div class="setup-head">
+        <div>
+          <p class="eyebrow">Setup</p>
+          <h2 id="setup-title" class="section-title mt-3.5">Set up in a minute.</h2>
+          <p class="lead mt-4 max-w-lg">
+            Sign in with Discord to download. The app itself needs no account, and setup walks you
+            through a few short steps.
+          </p>
+        </div>
+        <div class="setup-pills">
+          <span class="setup-pill">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <rect x="2" y="2" width="12" height="12" rx="3" stroke="currentColor" stroke-width="1.3" />
+              <path d="M5 8h6M5 11h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+            </svg>
+            Lives in the system tray
+          </span>
+          <span class="setup-pill setup-pill-quiet">Discord download</span>
+        </div>
+      </div>
+
+      <ol class="setup-grid">
+        {
+          steps.map((step, index) => (
+            <li class="step-card">
+              <span class="step-num" aria-hidden="true">{index + 1}</span>
+              <div>
+                <h3 class="step-title">{step.title}</h3>
+                <p class="step-copy">{step.copy}</p>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+
+      <p class="setup-note">
+        Already have it? Updates arrive through the app's own updater.
+      </p>
+    </div>
+  </div>
+</section>

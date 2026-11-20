@@ -12,9 +12,14 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@lyrica/styles": ["packages/styles/src/index.ts"],
+      "@lyrica/styles/*": ["packages/styles/src/*"]
+    },
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "packages/styles/src", "vite.config.ts"]
 }

@@ -1,0 +1,41 @@
+---
+import Base from "../../layouts/Base.astro";
+import PageHero from "../../components/ui/PageHero.astro";
+import { setupArchive } from "../../data/setups";
+import { formatShortDate } from "../../lib/format";
+import siteConfig from "../../../site.config";
+---
+
+<Base
+  title={`Setup archive — ${siteConfig.name}`}
+  description="Every setup featured on the Lyrica site, newest first."
+>
+  <PageHero
+    eyebrow="Archive"
+    title="Every desk so far."
+    lead="Newest first. Preview entries are generated illustrations; approved community entries carry a credit."
+  >
+    <a href="/setups" class="btn btn-primary h-10 px-4">Back to the gallery</a>
+  </PageHero>
+
+  <section class="section pt-10">
+    <div class="wrap">
+      <ol class="max-w-3xl divide-y divide-line border-y border-line">
+        {setupArchive.map((setup, index) => (
+          <li class="flex flex-col gap-2 py-5 sm:flex-row sm:items-baseline sm:gap-6">
+            <span class="w-10 shrink-0 text-[0.65rem] text-muted">{String(index + 1).padStart(2, "0")}</span>
+            <div class="min-w-0 flex-1">
+              <h2 class="text-lg tracking-[-0.02em]">{setup.title}</h2>
+              <p class="mt-1 text-xs leading-relaxed text-muted">{setup.caption}</p>
+              <p class="mt-2 text-[0.65rem] text-[#777781]">{setup.style} · {setup.player} · {setup.screens} {setup.screens === 1 ? "screen" : "screens"} · {setup.credit}</p>
+            </div>
+            <div class="flex shrink-0 items-center gap-3 text-[0.65rem] text-muted">
+              <time datetime={setup.date}>{formatShortDate(new Date(`${setup.date}T12:00:00Z`))}</time>
+              <a href="/setups" class="text-white underline decoration-white/25 underline-offset-2">View</a>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+</Base>

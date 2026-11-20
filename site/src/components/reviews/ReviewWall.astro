@@ -1,0 +1,31 @@
+---
+import { reviews } from "../../data/reviews";
+---
+
+{reviews.length > 0 && (
+  <section class="section border-t border-line" aria-labelledby="reviews-title">
+    <div class="wrap">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">Reviews and press</p>
+        <h2 id="reviews-title" class="section-title">What people said, with a source.</h2>
+        <p class="lead">Every quote here links to the public post it came from. Nothing is invented.</p>
+      </div>
+      <div class="mt-8 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        {reviews.map((review) => (
+          <figure class="rounded-3xl border border-line bg-surface p-5">
+            <blockquote class="text-[0.95rem] leading-relaxed text-[#d5d5dc]">“{review.quote}”</blockquote>
+            <figcaption class="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+              <span class="font-semibold text-white">{review.name}</span>
+              {review.handle && <span>{review.handle}</span>}
+              <span>·</span>
+              <a href={review.url} target="_blank" rel="noreferrer" class="underline decoration-white/25 underline-offset-2 hover:text-white">
+                {review.source}
+              </a>
+              <time datetime={review.date}>{review.date}</time>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </div>
+  </section>
+)}

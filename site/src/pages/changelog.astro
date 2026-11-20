@@ -1,0 +1,70 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../layouts/Base.astro";
+import PageHero from "../components/ui/PageHero.astro";
+import siteConfig from "../../site.config";
+import { formatShortDate } from "../lib/format";
+
+const releases = (await getCollection("changelog")).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
+);
+---
+
+<Base
+  title={`Changelog — ${siteConfig.name}`}
+  description="Every Lyrica release, what changed and when. Includes the full 2.0 notes."
+>
+  <PageHero
+    eyebrow="Changelog"
+    title="What changed, and when."
+    lead={`Every release, in plain language. Current version: ${siteConfig.product.version}. Tags mark New, Improved and Fixed work.`}
+  >
+    <a href="/changelog/rss.xml" class="btn btn-primary h-10 px-4">Subscribe with RSS</a>
+    <a href="/roadmap" class="btn btn-ghost h-10 px-4">See the roadmap</a>
+  </PageHero>
+
+  <section class="section pt-10">
+    <div class="wrap">
+      <div class="max-w-3xl">
+        {releases.map((release, index) => (
+          <article id={release.data.version} class="changelog-entry" data-reveal style={{ "--reveal-delay": `${index * 60}ms` }}>
+            <div class="changelog-meta">
+              <span class="changelog-version">v{release.data.version}</span>
+              <time class="changelog-date" datetime={release.data.date.toISOString()}>
+                {formatShortDate(release.data.date)}
+              </time>
+              {release.data.isNew && <span class="badge">Current</span>}
+              {release.data.sections.map((section) => <span class="badge badge-neutral">{section.label}</span>)}
+            </div>
+
+            <div class="changelog-body">
+              <h2 class="changelog-title">{release.data.title}</h2>
+              <p class="changelog-summary">{release.data.summary}</p>
+
+              {release.data.sections.map((section) => (
+                <div class="changelog-section">
+                  <h3 class="changelog-label">{section.label}</h3>
+                  <ul class="changelog-list">
+                    {section.items.map((item) => <li>{item}</li>)}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div class="mt-12 max-w-3xl rounded-3xl border border-line bg-surface p-6 sm:p-8">
+        <h2 class="text-xl tracking-[-0.03em]">Running an older version?</h2>
+        <p class="mt-2 text-sm leading-relaxed text-muted">
+          Open Lyrica from the tray and choose Check for updates. If you have not installed it yet,
+          the current build is one download away.
+        </p>
+        <div class="mt-5 flex flex-wrap gap-2">
+          <a href="/#download" class="btn btn-primary h-10 px-4">Download {siteConfig.product.version}</a>
+          <a href="/troubleshoot" class="btn btn-ghost h-10 px-4">Troubleshoot an update</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>

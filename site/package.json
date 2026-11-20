@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && npm run build:worker",
+    "build:worker": "esbuild worker/index.ts --bundle --format=esm --platform=neutral --target=es2022 --outfile=worker-dist/index.js",
     "preview": "astro preview",
     "check": "astro check",
+    "check:links": "node scripts/check-links.mjs",
+    "test": "npx --yes vitest@5.1.1 run src/lib",
     "sync": "node scripts/sync-release.mjs",
     "release": "node scripts/sync-release.mjs && npm run build"
   },
@@ -16,6 +19,7 @@
     "@astrojs/react": "^4.4.0",
     "@astrojs/rss": "^4.0.12",
     "@astrojs/sitemap": "^3.6.0",
+    "@noble/ed25519": "^3.2.0",
     "@tailwindcss/vite": "^4.1.14",
     "astro": "^5.14.1",
     "framer-motion": "^11.18.2",

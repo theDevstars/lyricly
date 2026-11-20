@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000" role="img" aria-label="Abstract dark wallpaper with soft pink and teal contour lines">
+  <defs>
+    <radialGradient id="pink" cx="18%" cy="48%" r="60%">
+      <stop offset="0" stop-color="#ff5c8a" stop-opacity=".55"/>
+      <stop offset="55%" stop-color="#ff5c8a" stop-opacity=".09"/>
+      <stop offset="100%" stop-color="#ff5c8a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="teal" cx="86%" cy="62%" r="58%">
+      <stop offset="0" stop-color="#3fd6c8" stop-opacity=".34"/>
+      <stop offset="60%" stop-color="#3fd6c8" stop-opacity=".06"/>
+      <stop offset="100%" stop-color="#3fd6c8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000" stop-opacity=".85"/>
+    </linearGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="18"/></filter>
+    <pattern id="grain" width="120" height="120" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="18" r="1" fill="#fff" opacity=".05"/>
+      <circle cx="70" cy="42" r=".8" fill="#fff" opacity=".04"/>
+      <circle cx="44" cy="92" r="1.1" fill="#fff" opacity=".035"/>
+      <circle cx="100" cy="104" r=".7" fill="#fff" opacity=".05"/>
+    </pattern>
+  </defs>
+  <rect width="1600" height="1000" fill="#050506"/>
+  <rect width="1600" height="1000" fill="url(#pink)"/>
+  <rect width="1600" height="1000" fill="url(#teal)"/>
+  <g fill="none" stroke="#ffffff" stroke-opacity=".11" stroke-width="1.4">
+    <path d="M-120 710C160 630 240 470 520 452s380 148 620 96 380-296 620-308"/>
+    <path d="M-120 750C170 668 258 500 528 482s390 150 632 98 380-300 630-312"/>
+    <path d="M-120 792C180 706 276 532 538 514s400 152 644 100 382-304 640-316"/>
+    <path d="M-120 836C190 744 296 566 548 548s410 156 656 102 386-308 648-320"/>
+    <path d="M-120 882C200 782 314 600 558 582s420 158 668 104 390-312 656-324"/>
+    <path d="M-120 630C150 558 222 412 498 394s356 140 580 90 356-278 582-290"/>
+    <path d="M-120 592C140 524 204 384 476 366s344 134 556 84 340-268 558-280"/>
+    <path d="M-120 552C130 490 188 354 456 336s330 128 534 78 326-260 536-272"/>
+  </g>
+  <g fill="none" stroke="#ff9dbb" stroke-opacity=".2" stroke-width="1">
+    <path d="M-60 940C220 870 340 720 600 706s440 112 700 54 300-250 340-286"/>
+    <path d="M-60 980C230 906 360 754 612 740s450 114 716 56 304-254 344-290"/>
+  </g>
+  <g filter="url(#soft)" opacity=".45">
+    <ellipse cx="330" cy="430" rx="260" ry="200" fill="#ff5c8a" opacity=".22"/>
+    <ellipse cx="1230" cy="640" rx="240" ry="180" fill="#3fd6c8" opacity=".14"/>
+  </g>
+  <rect width="1600" height="1000" fill="url(#grain)"/>
+  <rect y="640" width="1600" height="360" fill="url(#fade)"/>
+</svg>

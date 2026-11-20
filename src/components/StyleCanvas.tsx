@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
 import type { Snapshot } from '../types';
-import type { LyricStyle, StyleState } from '../styles/types';
+import type { LyricStyle, StyleState } from '@lyrica/styles';
 import { activeLineIndex, playbackPosition, wordAt } from '../lib/timing';
 import { resolvePalette } from '../lib/colors';
 import { reportFrameTime } from '../lib/api';
-import { effectsFor, safeEffects } from '../effects/registry';
-import { postEffects, preEffects } from '../effects/apply';
+import { effectsFor, safeEffects } from '@lyrica/styles';
+import { postEffects, preEffects } from '@lyrica/styles';
 
 /// Light mode asks for 30 fps, so a frame is skipped when the last one is young.
 const LIGHT_FRAME_MS = 32;

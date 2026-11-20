@@ -1,5 +1,5 @@
 import { contrastWarnings, resolvePalette } from '../lib/colors';
-import { getStyle } from '../styles/registry';
+import { getStyle } from '@lyrica/styles';
 import type { Settings, Snapshot } from '../types';
 
 const FONTS = [

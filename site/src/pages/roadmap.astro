@@ -1,0 +1,59 @@
+---
+import Base from "../layouts/Base.astro";
+import PageHero from "../components/ui/PageHero.astro";
+import { roadmapColumns, roadmapItems, roadmapNote } from "../data/roadmap";
+import siteConfig from "../../site.config";
+---
+
+<Base
+  title={`Roadmap — ${siteConfig.name}`}
+  description="What is planned, in progress and shipped for Lyrica, with a link to vote or suggest on Discord."
+>
+  <PageHero
+    eyebrow="Roadmap"
+    title="What comes next, in public."
+    lead="A direction, not a promise of a date. Items move when testing says they should."
+    meta="Vote or suggest on Discord"
+  >
+    <a href={siteConfig.discord.inviteUrl} target="_blank" rel="noreferrer" class="btn btn-primary h-10 px-4">Vote on Discord</a>
+    <a href="/changelog" class="btn btn-ghost h-10 px-4">Read the changelog</a>
+  </PageHero>
+
+  <section class="section pt-10">
+    <div class="wrap">
+      <div class="roadmap-grid">
+        {roadmapColumns.map((column) => {
+          const items = roadmapItems.filter((item) => item.status === column.id);
+          return (
+            <section class="roadmap-column" aria-labelledby={`roadmap-${column.id}`}>
+              <div class="roadmap-column-head">
+                <div>
+                  <h2 id={`roadmap-${column.id}`} class="text-lg tracking-[-0.02em]">{column.title}</h2>
+                  <p class="mt-0.5 text-[0.68rem] text-muted">{column.blurb}</p>
+                </div>
+                <span class="badge badge-neutral">{items.length}</span>
+              </div>
+              {items.map((item) => (
+                <article class="roadmap-item">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="roadmap-tag">{item.tag}</span>
+                    {item.version && <span class="text-[0.6rem] text-muted">v{item.version}</span>}
+                  </div>
+                  <h3 class="mt-2 text-[0.92rem] leading-snug tracking-[-0.015em]">{item.title}</h3>
+                  <p class="mt-1.5 text-[0.72rem] leading-relaxed text-muted">{item.description}</p>
+                </article>
+              ))}
+            </section>
+          );
+        })}
+      </div>
+
+      <div class="mt-6 flex flex-col justify-between gap-4 rounded-2xl border border-line bg-surface p-5 text-xs leading-relaxed text-muted sm:flex-row sm:items-center">
+        <p class="max-w-2xl">{roadmapNote}</p>
+        <a href={siteConfig.discord.inviteUrl} target="_blank" rel="noreferrer" class="btn btn-ghost h-9 shrink-0 px-4 text-sm">
+          Suggest a change
+        </a>
+      </div>
+    </div>
+  </section>
+</Base>
