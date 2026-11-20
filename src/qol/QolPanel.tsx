@@ -73,16 +73,17 @@ function RuleRow({
         ))}
       </select>
 
-      <input
-        type="text"
-        className="qol-value"
-        value={value}
-        disabled={!NEEDS_VALUE.has(rule.condition)}
-        placeholder={rule.condition === 'time' ? '22:00-07:00' : 'game.exe, chrome'}
-        onChange={(event) => setValue(event.target.value)}
-        onBlur={() => onChange({ ...rule, value: value.trim() })}
-        aria-label="Condition value"
-      />
+      {NEEDS_VALUE.has(rule.condition) && (
+        <input
+          type="text"
+          className="qol-value"
+          value={value}
+          placeholder={rule.condition === 'time' ? '22:00-07:00' : 'game.exe, chrome'}
+          onChange={(event) => setValue(event.target.value)}
+          onBlur={() => onChange({ ...rule, value: value.trim() })}
+          aria-label="Condition value"
+        />
+      )}
 
       <select
         value={rule.action}
@@ -98,7 +99,7 @@ function RuleRow({
 
       <button
         type="button"
-        className="ghost"
+        className={`ghost qol-test ${tested === true ? 'hit' : ''}`}
         onClick={() => {
           void qolTestRule({ ...rule, value: value.trim() })
             .then(setTested)
@@ -106,7 +107,7 @@ function RuleRow({
         }}
         title="Check this rule against the desktop right now"
       >
-        {tested === null ? 'Test' : tested ? 'matches now' : 'no match'}
+        {tested === null ? 'Test' : tested ? 'matches' : 'no match'}
       </button>
 
       <button type="button" className="ghost danger" onClick={onRemove} aria-label="Remove rule">
@@ -121,7 +122,6 @@ export function QolPanel({ snapshot, commit }: QolPanelProps) {
   const rules = settings.qolRules ?? [];
   const [allow, setAllow] = useState((settings.qolAllowlist ?? []).join(', '));
   const [deny, setDeny] = useState((settings.qolDenylist ?? []).join(', '));
-  const [playlistEnd, setPlaylistEnd] = useState(false);
 
   useEffect(() => {
     setAllow((settings.qolAllowlist ?? []).join(', '));
@@ -201,7 +201,7 @@ export function QolPanel({ snapshot, commit }: QolPanelProps) {
         </p>
       </section>
 
-      <section className="panel">
+      <section className="panel qol-panel">
         <h2>Per-song memory</h2>
         <p className="note">
           The nudge and the style you set on a song come back the next time it plays. Artist and
@@ -230,7 +230,7 @@ export function QolPanel({ snapshot, commit }: QolPanelProps) {
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel qol-panel">
         <h2>Smart hide</h2>
 
         <div className="toggle-row">
@@ -248,7 +248,7 @@ export function QolPanel({ snapshot, commit }: QolPanelProps) {
           </label>
         </div>
 
-        <label className="field">
+        <label className="field qol-narrow">
           <span>Pause delay</span>
           <input
             type="number"
@@ -308,22 +308,33 @@ export function QolPanel({ snapshot, commit }: QolPanelProps) {
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel qol-panel">
         <h2>Performance and theme</h2>
 
-        <label className="field">
+        <div className="field qol-light">
           <span>Light mode</span>
-          <select value={settings.qolLightMode} onChange={(event) => applyLightMode(event.target.value)}>
-            <option value="auto">Auto (battery saver or slow frames)</option>
-            <option value="on">Always on · 30 fps, no blur or bloom</option>
-            <option value="off">Never</option>
-          </select>
-        </label>
+          <div className="segmented" role="group" aria-label="Light mode">
+            {[
+              ['auto', 'Auto'],
+              ['on', 'Always'],
+              ['off', 'Never'],
+            ].map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                className={settings.qolLightMode === mode ? 'on' : ''}
+                onClick={() => applyLightMode(mode)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <output>{qol.lightMode ? 'on now' : 'off now'}</output>
+        </div>
 
         <p className="note">
-          {qol.lightMode ? 'Light mode is on now.' : 'Light mode is off now.'}
-          {qol.notice ? ` ${qol.notice}.` : ''} Frame time is reported by the canvas, so heavy
-          styles thin themselves out on their own.
+          Auto turns it on with battery saver or after five slow frames. 30 fps, no backdrop blur,
+          no bloom. {qol.notice ? `${qol.notice}.` : ''}
         </p>
 
         <div className="toggle-row">
@@ -342,7 +353,7 @@ export function QolPanel({ snapshot, commit }: QolPanelProps) {
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel qol-panel">
         <h2>Sleep timer</h2>
         <p className="note">
           Fades the ambient screen out and closes it. Playback is never touched.
@@ -383,11 +394,8 @@ export function QolPanel({ snapshot, commit }: QolPanelProps) {
           <label className="switch">
             <input
               type="checkbox"
-              checked={playlistEnd}
-              onChange={(event) => {
-                setPlaylistEnd(event.target.checked);
-                void sleepPlaylistEnd(event.target.checked);
-              }}
+              checked={qol.afterPlaylist}
+              onChange={(event) => void sleepPlaylistEnd(event.target.checked)}
               aria-label="Close the ambient screen when the queue ends"
             />
             <i />
@@ -395,7 +403,7 @@ export function QolPanel({ snapshot, commit }: QolPanelProps) {
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel qol-panel">
         <h2>Rules</h2>
         <p className="note">
           One condition, one action. Rules are checked in order and every matching action applies;
@@ -418,7 +426,7 @@ export function QolPanel({ snapshot, commit }: QolPanelProps) {
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel qol-panel">
         <h2>Games and fullscreen apps</h2>
         <p className="note">
           A fullscreen game always wins the screen. List a game here to opt it in and keep the

@@ -12,17 +12,21 @@ interface StyleCanvasProps {
   snapshot: Snapshot;
   style: LyricStyle;
   className?: string;
+  /** Nothing to show: skip the work instead of painting invisible frames. */
+  hidden?: boolean;
 }
 
 /** Runs the render loop for a style on a DPR-aware canvas. */
-export function StyleCanvas({ snapshot, style, className }: StyleCanvasProps) {
+export function StyleCanvas({ snapshot, style, className, hidden }: StyleCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const snapshotRef = useRef(snapshot);
   const styleRef = useRef(style);
+  const hiddenRef = useRef(Boolean(hidden));
   const startedAt = useRef(performance.now());
 
   snapshotRef.current = snapshot;
   styleRef.current = style;
+  hiddenRef.current = Boolean(hidden);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -54,7 +58,7 @@ export function StyleCanvas({ snapshot, style, className }: StyleCanvasProps) {
       frame = requestAnimationFrame(draw);
 
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas || hiddenRef.current) return;
 
       const now = performance.now();
       const light = snapshotRef.current.qol?.lightMode;

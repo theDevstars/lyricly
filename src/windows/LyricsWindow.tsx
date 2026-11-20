@@ -181,8 +181,17 @@ export function LyricsWindow({ snapshot }: LyricsWindowProps) {
         </div>
       </div>
 
-      <div className={`stage ${hideLyrics ? 'qol-hidden' : ''}`}>
-        <StyleCanvas snapshot={snapshot} style={style} className="style-canvas" />
+      <div
+        className={`stage ${
+          hideLyrics || (smart.noLyrics && snapshot.settings.qolNoLyricsPill) ? 'qol-hidden' : ''
+        }`}
+      >
+        <StyleCanvas
+          snapshot={snapshot}
+          style={style}
+          className="style-canvas"
+          hidden={hideLyrics || (smart.noLyrics && snapshot.settings.qolNoLyricsPill)}
+        />
         {!hideLyrics && smart.instrumental && snapshot.settings.qolInstrumentalDots && (
           <div className="qol-dots" aria-hidden>
             <i />
@@ -191,7 +200,11 @@ export function LyricsWindow({ snapshot }: LyricsWindowProps) {
           </div>
         )}
         {smart.noLyrics && snapshot.settings.qolNoLyricsPill && (
-          <div className="qol-pill">No lyrics for “{snapshot.playback.title}”</div>
+          <div className="qol-empty">
+            <strong>{snapshot.playback.title}</strong>
+            <span>{snapshot.playback.artist}</span>
+            <em>No lyrics found</em>
+          </div>
         )}
         {rememberNote && <div className="qol-note">{rememberNote}</div>}
         {!hasTrack && (
@@ -201,15 +214,21 @@ export function LyricsWindow({ snapshot }: LyricsWindowProps) {
           </div>
         )}
         {snapshot.loading && hasTrack && <div className="loading-hint">looking up lyrics…</div>}
-        {snapshot.error && hasTrack && !snapshot.loading && (
-          <div className="error-hint">{snapshot.error}</div>
-        )}
+        {snapshot.error &&
+          hasTrack &&
+          !snapshot.loading &&
+          !(smart.noLyrics && snapshot.settings.qolNoLyricsPill) && (
+            <div className="error-hint">{snapshot.error}</div>
+          )}
         {snapshot.tapSync?.active && (
           <div className="tap-badge">
             tap · {snapshot.tapSync.recorded}/{snapshot.tapSync.total}
           </div>
         )}
-        {snapshot.lyrics && (
+        {smart.paused && !snapshot.qol.hideOverlays && !smart.repeated && (
+          <div className="qol-paused">Paused</div>
+        )}
+        {snapshot.lyrics && !hideLyrics && (
           <div className="lyric-credit">
             {snapshot.lyrics.attribution ?? `Lyrics from ${snapshot.lyrics.source}`}
             {snapshot.lyrics.timing === 'estimated' && <em> · estimated timing</em>}

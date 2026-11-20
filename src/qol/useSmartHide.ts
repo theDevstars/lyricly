@@ -52,12 +52,14 @@ export function useSmartHide(snapshot: Snapshot): SmartHide {
     next !== undefined &&
     next.startMs - position > INSTRUMENTAL_GAP_MS;
 
+  // A missing lyric is reported as an error by the pipeline; that is the same
+  // situation as "no lyrics", not a failure worth a red hint.
+  const noLyricsError = Boolean(snapshot.error && /no lyrics/i.test(snapshot.error));
   const noLyrics =
     playing &&
     Boolean(snapshot.playback.title) &&
     !snapshot.loading &&
-    !snapshot.lyrics &&
-    !snapshot.error;
+    (!snapshot.lyrics || noLyricsError);
 
   const repeated =
     settings.qolEnabled && settings.qolHideOnRepeat && qol.repeated >= 1;

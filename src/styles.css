@@ -1314,34 +1314,67 @@ body[data-window='license'] {
   transition: opacity 0.6s ease;
 }
 
-.qol-pill {
+.qol-paused {
   position: absolute;
-  left: 50%;
-  bottom: 26px;
-  transform: translateX(-50%);
-  padding: 7px 16px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid var(--panel-border);
+  left: 16px;
+  bottom: 12px;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--muted);
-  font-size: 12px;
-  white-space: nowrap;
   pointer-events: none;
 }
 
+/* The quiet now-playing view: what is on, and that no lyrics were found. */
+.qol-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 4px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.qol-empty strong {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.qol-empty span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.qol-empty em {
+  margin-top: 12px;
+  padding: 5px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Below the lyric line, in the empty band above the credit. */
 .qol-dots {
   position: absolute;
   left: 50%;
-  bottom: 30px;
+  bottom: 13px;
   transform: translateX(-50%);
   display: flex;
-  gap: 8px;
+  gap: 9px;
   pointer-events: none;
 }
 
 .qol-dots i {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--muted);
   animation: qol-breathe 2.4s ease-in-out infinite;
@@ -1358,12 +1391,12 @@ body[data-window='license'] {
 @keyframes qol-breathe {
   0%,
   100% {
-    opacity: 0.2;
+    opacity: 0.35;
     transform: translateY(0);
   }
   50% {
-    opacity: 0.9;
-    transform: translateY(-3px);
+    opacity: 1;
+    transform: translateY(-4px);
   }
 }
 
@@ -1417,12 +1450,83 @@ body[data-window='license'] {
 }
 
 .qol-rule {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.2fr) auto auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  padding: 9px 0;
+  padding: 10px 0;
   border-top: 1px solid var(--panel-border);
+}
+
+.qol-rule > .switch {
+  flex: 0 0 auto;
+}
+
+.qol-rule select[aria-label='Condition'] {
+  flex: 1 1 220px;
+}
+
+.qol-rule select[aria-label='Action'] {
+  flex: 1 1 190px;
+}
+
+.qol-rule .qol-value {
+  flex: 1 1 150px;
+}
+
+.qol-rule .qol-test {
+  flex: 0 0 auto;
+  min-width: 76px;
+}
+
+.qol-rule .qol-test.hit {
+  color: var(--accent);
+  border-color: rgba(142, 240, 201, 0.45);
+}
+
+.qol-panel {
+  gap: 10px;
+}
+
+.qol-panel h2 {
+  margin-bottom: 2px;
+}
+
+/* A number input and its unit sit on one row, not stacked. */
+.qol-narrow input[type='number'] {
+  grid-column: auto;
+  max-width: 110px;
+}
+
+.qol-light {
+  grid-template-columns: 180px 1fr 72px;
+}
+
+.qol-light .segmented {
+  justify-self: start;
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.segmented button {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.segmented button.on {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
 }
 
 .qol-rule select,
@@ -1491,6 +1595,6 @@ html[data-windows-light='on'] .lyrics-frame {
 }
 
 html[data-windows-light='on'] .qol-note,
-html[data-windows-light='on'] .qol-pill {
+html[data-windows-light='on'] .qol-empty em {
   background: rgba(255, 255, 255, 0.86);
 }

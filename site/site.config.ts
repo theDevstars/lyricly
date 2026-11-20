@@ -12,7 +12,7 @@ const siteConfig = {
     "Lyrica is a Windows tray app that shows time-synced lyrics from Spotify, Apple Music and Cider in animated styles, with ambient Rim Light. Free, no account.",
 
   /** Canonical origin. Also used for the sitemap, RSS and social cards. */
-  url: "https://lyrica.app",
+  url: "https://lyrica-avh2b6.freebuff.site",
   /** One accent, used for eyebrows, badges, step numbers and focus rings. */
   accent: "#FF5C8A",
 
@@ -40,7 +40,7 @@ const siteConfig = {
      */
     windowsUrl: "/downloads/Lyrica-Setup-2.0.0.exe",
     /** SHA-256 of that exact file. Regenerate whenever you replace the installer. */
-    sha256: "2a4adf5e929388ac4302377d53af8daebe86c9205a2d346ec6563fbc5b72f1c6",
+    sha256: "1db8aa9a955135490f79cb6e59dea2801279e5161777f637902240c09417eafa",
     sizeLabel: "3.5 MB",
   },
 

@@ -155,6 +155,7 @@ export interface QolState {
   notice: string | null;
   sleepUntilMs: number;
   sleepFading: boolean;
+  afterPlaylist: boolean;
   repeated: number;
   activeActions: string[];
   memorySize: number;
