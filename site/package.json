@@ -7,7 +7,9 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "sync": "node scripts/sync-release.mjs",
+    "release": "node scripts/sync-release.mjs && npm run build"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.6",

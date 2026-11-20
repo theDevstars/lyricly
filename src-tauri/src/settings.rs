@@ -88,6 +88,14 @@ pub struct Settings {
     pub lyrics_prefer_synced: bool,
     pub lyrics_confidence_threshold: f32,
     pub lyrics_auto_estimate: bool,
+    /// Spotify account linking. Empty client id means "not configured yet";
+    /// tokens live in Credential Manager, not here.
+    pub spotify_client_id: String,
+    pub spotify_redirect_port: u16,
+    pub spotify_controls: bool,
+    pub spotify_account: String,
+    pub spotify_product: String,
+    pub spotify_expires_at_ms: i64,
     /// Cider (cider.sh) as an additional player source.
     pub cider_enabled: bool,
     pub cider_host: String,
@@ -150,6 +158,12 @@ impl Default for Settings {
             lyrics_prefer_synced: true,
             lyrics_confidence_threshold: 0.6,
             lyrics_auto_estimate: true,
+            spotify_client_id: String::new(),
+            spotify_redirect_port: 8888,
+            spotify_controls: true,
+            spotify_account: String::new(),
+            spotify_product: String::new(),
+            spotify_expires_at_ms: 0,
             cider_enabled: false,
             cider_host: "localhost".into(),
             cider_port: 10_767,

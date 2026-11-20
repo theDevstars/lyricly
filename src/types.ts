@@ -109,7 +109,25 @@ export interface Settings {
   ciderHost: string;
   ciderPort: number;
   ciderPreferApi: boolean;
+  spotifyClientId: string;
+  spotifyRedirectPort: number;
+  spotifyControls: boolean;
+  spotifyAccount: string;
+  spotifyProduct: string;
+  spotifyExpiresAtMs: number;
   window: WindowState;
+}
+
+export interface SpotifyStatus {
+  linked: boolean;
+  clientId: string;
+  clientIdSet: boolean;
+  redirectUri: string;
+  account: string | null;
+  product: string | null;
+  premium: boolean;
+  controls: boolean;
+  error: string | null;
 }
 
 export interface Snapshot {

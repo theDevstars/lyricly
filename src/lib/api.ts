@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { CiderStatus, LicenseStatus, Settings, Snapshot } from '../types';
+import type { CiderStatus, LicenseStatus, Settings, Snapshot, SpotifyStatus } from '../types';
 
 export const getState = (): Promise<Snapshot> => invoke<Snapshot>('get_state');
 
@@ -60,3 +60,22 @@ export const quitApp = (): Promise<void> => invoke('quit_app');
 
 export const onState = (handler: (snapshot: Snapshot) => void): Promise<UnlistenFn> =>
   listen<Snapshot>('lyrica:state', (event) => handler(event.payload));
+
+export const spotifyStatus = (): Promise<SpotifyStatus> =>
+  invoke<SpotifyStatus>('spotify_status');
+
+/// Starts the browser login; the result arrives on `lyrica:spotify`.
+export const spotifyLink = (): Promise<void> => invoke('spotify_link');
+
+export const spotifyUnlink = (): Promise<SpotifyStatus> =>
+  invoke<SpotifyStatus>('spotify_unlink');
+
+export const spotifyControl = (action: string, value?: string): Promise<void> =>
+  invoke('spotify_control', { action, value: value ?? null });
+
+export const onSpotify = (
+  handler: (payload: { linked?: boolean; error?: string }) => void,
+): Promise<UnlistenFn> =>
+  listen<{ linked?: boolean; error?: string }>('lyrica:spotify', (event) =>
+    handler(event.payload),
+  );

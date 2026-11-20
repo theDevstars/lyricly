@@ -27,17 +27,21 @@ const siteConfig = {
     priceLabel: "Free",
     priceNote: "Free while Lyrica is in open beta. No account, no subscription.",
     ctaLabel: "Download for Windows",
-    badge: "Free · 18.4 MB",
+    badge: "Free · 3.5 MB",
     /** Optional line under the button, e.g. "One-time purchase. Updates included." */
     footnote: "Includes updates through the app. Windows 10 2004+ or Windows 11.",
   },
 
   download: {
-    /** Replace with your signed installer URL. */
-    windowsUrl: "https://github.com/lyrica-app/lyrica/releases/latest/download/Lyrica-Setup-2.0.0.exe",
-    /** Shown under the download button. Replace when you ship a new installer. */
-    sha256: "9f2c41d7e0b6a85c3d14f9b27e6c0a8d5f31b7e94c2a6d80f5b3e1c97a4d6208",
-    sizeLabel: "18.4 MB",
+    /**
+     * Served directly from the site. The installer lives at
+     * site/public/downloads/Lyrica-Setup-2.0.0.exe, so clicking downloads it
+     * instead of sending people to an external page.
+     */
+    windowsUrl: "/downloads/Lyrica-Setup-2.0.0.exe",
+    /** SHA-256 of that exact file. Regenerate whenever you replace the installer. */
+    sha256: "d69dc6dab14a1be60b2dc11fe12a389b80a4092864f689b6261c1ff671eb0b8b",
+    sizeLabel: "3.5 MB",
   },
 
   systemRequirements: [

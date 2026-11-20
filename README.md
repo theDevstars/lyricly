@@ -160,6 +160,18 @@ npm run tauri build    # release exe + NSIS installer
 The release executable is `src-tauri/target/release/lyrica.exe` (also copied to `release/Lyrica.exe`)
 and the installer lands in `src-tauri/target/release/bundle/nsis/`.
 
+## Releasing
+
+`./scripts/release.sh` does the whole thing in order: build, stage `release/`, refresh the website's installer, hash, size and badge (`site/scripts/sync-release.mjs`), rebuild the site, then replace the assets on the GitHub release for the current version.
+
+```bash
+./scripts/release.sh                                   # same version, new build
+./scripts/release.sh --version 2.1.0 --notes notes.md  # bump the site and add a changelog entry
+SKIP_UPLOAD=1 ./scripts/release.sh                     # build and sync only
+```
+
+The site sync never invents a version: without `--version` it keeps the one in `site/site.config.ts` and only makes the download true again. A changelog entry is generated from a small Markdown file — a `# title` line, a summary paragraph, then `## New`, `## Improved` and `## Fixed` lists.
+
 ## Layout
 
 ```
@@ -227,6 +239,31 @@ artwork. Enable it under Preferences → Players.
 - Lyrics come from `/api/v2/lyrics/current?words=true` when Apple Music has them, which can
   be word-synced, line-synced or plain. The provider is listed first among lyric sources but
   refuses results whose track does not match what is playing.
+
+## Spotify account (optional)
+
+Lyrica works from the media session, so linking is never required. A linked Spotify account adds three things: the exact position (no sampler drift), the largest artwork, and — on Premium — playback controls.
+
+1. Create an app at <https://developer.spotify.com/dashboard>, keep it in **Development Mode**, and add your own account under **Users**.
+2. Add `http://127.0.0.1:8888/callback` as a redirect URI (Preferences shows the exact string, port included).
+3. Paste the Client ID into **Preferences → Players → Spotify account** and press **Connect Spotify**.
+
+Details worth knowing:
+
+- The login is Authorization Code with PKCE against a loopback listener; there is no client secret, and `state` is verified before the code is exchanged.
+- Tokens live in the Windows Credential Manager (`lyrica/spotify-access`, `lyrica/spotify-refresh`), are refreshed a minute before expiry, and never appear in the settings file or the log.
+- Polling adapts: about once a second while playing, once every four seconds when paused or idle, and it backs off for the `Retry-After` window on a 429. A 401 asks you to link again; a 403 on a control means Premium is required.
+- When Spotify answers `204` the media session takes over again, so a local file playing in another app still shows its lyrics.
+- **Disconnect** deletes the tokens on this PC. Revoking Lyrica's access itself is done in your Spotify account page.
+- Scopes are minimal: `user-read-playback-state`, `user-read-currently-playing`, and `user-modify-playback-state` only when controls are switched on.
+
+No Client ID ships with the app, so no developer account is shared between users and Development Mode's user allow-list is yours to manage.
+
+## Apple Music
+
+Apple Music's now-playing state comes from its media session, or from Cider's local API (see above) — Apple publishes no public now-playing endpoint for desktop apps.
+
+Apple's MusicKit JS unlocks the *library* side (playlists, recently played, ISRC lookups, rating a song), not now-playing. It needs a developer token: an ES256 JWT signed with your Apple Music key, which must be minted by a server and must never be shipped inside the app. That server is not part of this release, so Apple Music here stays read-only through the media session. Nothing is stubbed to look finished: there is no Apple connect button yet.
 
 ## Notes
 

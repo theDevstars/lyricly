@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { CiderStatus, Settings, Snapshot } from '../types';
+import type { CiderStatus, Settings, Snapshot, SpotifyStatus } from '../types';
 import { GROUPS, getStyle, STYLES, stylesIn } from '../styles/registry';
 import { StylePreview } from '../components/StylePreview';
 import {
@@ -7,6 +7,10 @@ import {
   reloadLyrics,
   setAmbientMode,
   setCiderToken,
+  spotifyLink,
+  spotifyStatus,
+  spotifyUnlink,
+  onSpotify,
   setStyle,
   tapSyncCancel,
   tapSyncRecord,
@@ -26,6 +30,19 @@ interface PreferencesProps {
 
 type Tab = 'styles' | 'sources' | 'players' | 'overlay' | 'ambient';
 
+/// Shown in place of a status before the first request comes back.
+const emptySpotify: SpotifyStatus = {
+  linked: false,
+  clientId: '',
+  clientIdSet: false,
+  redirectUri: 'http://127.0.0.1:8888/callback',
+  account: null,
+  product: null,
+  premium: false,
+  controls: false,
+  error: null,
+};
+
 const SOURCES = [
   { id: 'cider', name: 'Cider / Apple Music', hint: 'Apple Music lyrics, word-synced when available' },
   { id: 'local', name: 'Local cache & files', hint: 'Cached results and your own .lrc / .txt edits' },
@@ -40,6 +57,11 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
   const [hovered, setHovered] = useState<string | null>(null);
   const [ciderToken, setCiderTokenDraft] = useState('');
   const [ciderStatus, setCiderStatus] = useState<CiderStatus | null>(null);
+  const [spotify, setSpotify] = useState<SpotifyStatus | null>(null);
+  const [spotifyLinking, setSpotifyLinking] = useState(false);
+  const [spotifyClientId, setSpotifyClientIdDraft] = useState(
+    snapshot.settings.spotifyClientId ?? '',
+  );
   const [testingCider, setTestingCider] = useState(false);
   const [sourceResults, setSourceResults] = useState<Record<string, string>>({});
   const [hotkeyDraft, setHotkeyDraft] = useState(snapshot.settings.tapSyncHotkey);
@@ -53,6 +75,43 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
   useEffect(() => {
     setDraft(snapshot.settings);
   }, [snapshot.settings]);
+
+  // The link finishes on a worker thread, so the status is re-read on its event.
+  useEffect(() => {
+    void spotifyStatus().then(setSpotify).catch(() => {});
+    let unlisten: (() => void) | undefined;
+    void onSpotify(() => {
+      setSpotifyLinking(false);
+      void spotifyStatus().then(setSpotify).catch(() => {});
+    }).then((stop) => {
+      unlisten = stop;
+    });
+    return () => unlisten?.();
+  }, []);
+
+  const connectSpotify = async () => {
+    const next = { ...draft, spotifyClientId: spotifyClientId.trim() };
+    setDraft(next);
+    setSpotifyLinking(true);
+    try {
+      // Save first: the login thread reads the Client ID from the settings file.
+      await updateSettings(next);
+      await spotifyLink();
+    } catch (error) {
+      setSpotifyLinking(false);
+      setSpotify((current) =>
+        current ? { ...current, error: String(error) } : { ...emptySpotify, error: String(error) },
+      );
+    }
+  };
+
+  const disconnectSpotify = async () => {
+    try {
+      setSpotify(await spotifyUnlink());
+    } catch (error) {
+      setSpotify((current) => (current ? { ...current, error: String(error) } : current));
+    }
+  };
 
   const commit = (patch: Partial<Settings>) => {
     const next = { ...draft, ...patch };
@@ -485,6 +544,76 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
               {ciderStatus.version ? ` · v${ciderStatus.version}` : ''}
             </p>
           )}
+
+          <h2>Spotify account</h2>
+          <p className="note">
+            Linking is optional — Windows' own media session already follows Spotify. A linked
+            account adds the exact position, the large artwork and, with Premium, tray controls.
+            Tokens are kept in the Windows Credential Manager.
+          </p>
+
+          <label className="field field-wide">
+            <span>Client ID</span>
+            <input
+              type="text"
+              value={spotifyClientId}
+              placeholder="from the Spotify developer dashboard"
+              onChange={(event) => setSpotifyClientIdDraft(event.target.value)}
+              onBlur={() => commit({ spotifyClientId: spotifyClientId.trim() })}
+            />
+          </label>
+
+          <p className="note">
+            Lyrica ships without a Client ID, so nothing is shared until you bring your own. Create
+            a free app in the Spotify developer dashboard, add{' '}
+            <code>{spotify?.redirectUri ?? 'http://127.0.0.1:8888/callback'}</code> as a redirect
+            URI, keep it in Development Mode and add your own account under <em>Users</em>.
+          </p>
+
+          <div className="toggle-row">
+            <div>
+              <span>Allow playback controls</span>
+              <small>Requests the extra scope; Spotify only honours it on Premium</small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={draft.spotifyControls}
+                onChange={(event) => commit({ spotifyControls: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
+
+          <div className="panel-actions">
+            <button
+              type="button"
+              className="ghost"
+              disabled={spotifyLinking || !spotifyClientId.trim()}
+              onClick={() => void connectSpotify()}
+            >
+              {spotifyLinking
+                ? 'Waiting for the browser…'
+                : spotify?.linked
+                  ? 'Link again'
+                  : 'Connect Spotify'}
+            </button>
+            {spotify?.linked && (
+              <button type="button" className="ghost danger" onClick={() => void disconnectSpotify()}>
+                Disconnect
+              </button>
+            )}
+          </div>
+
+          <p className="note">
+            {spotify?.error
+              ? spotify.error
+              : spotify?.linked
+                ? `Linked as ${spotify.account ?? 'your account'}${
+                    spotify.product ? ` · ${spotify.product}` : ''
+                  }. Disconnecting removes the tokens here; revoke the app itself in your Spotify account page.`
+                : 'Not linked. Playback keeps working through the media session.'}
+          </p>
         </section>
       )}
 

@@ -1,3 +1,4 @@
+mod accounts;
 mod credentials;
 mod license;
 mod lyrics;
@@ -27,6 +28,15 @@ use tauri_plugin_global_shortcut::GlobalShortcutExt;
 static LAST_GEOMETRY_SAVE: AtomicI64 = AtomicI64::new(0);
 
 const POLL_MS: u64 = 250;
+
+/// The last Spotify Web API sample plus the last error, if any. Kept next to
+/// the runtime so the poller can prefer it over SMTC while it is fresh.
+#[derive(Default)]
+pub struct SpotifyState {
+    pub sample: Option<accounts::spotify::SpotifyPlayback>,
+    pub error: Option<String>,
+    pub device: Option<String>,
+}
 
 pub struct Runtime {
     pub settings: Settings,
@@ -60,6 +70,8 @@ pub struct Shared {
     pub genius_parsing: Arc<AtomicBool>,
     /// Cider connection settings, shared by the player source and the lyrics provider.
     pub cider: Arc<RwLock<players::cider::CiderConfig>>,
+    /// Last linked-account sample (Spotify today), read by the player poller.
+    pub spotify: Arc<Mutex<SpotifyState>>,
 }
 
 #[derive(serde::Serialize, Clone)]
@@ -1203,6 +1215,175 @@ fn set_pinned(app: &AppHandle, style: String, pinned: bool) {
     sync_tray(app);
 }
 
+#[tauri::command]
+fn spotify_status(app: AppHandle) -> accounts::spotify::SpotifyStatus {
+    let mut status = {
+        let state = app.state::<Shared>();
+        let runtime = state.runtime.lock().expect("runtime lock");
+        accounts::spotify::status(&runtime.settings)
+    };
+
+    if let Ok(spotify) = app.state::<Shared>().spotify.lock() {
+        if let Some(error) = spotify.error.clone() {
+            status.error = Some(error);
+        }
+    }
+    status
+}
+
+/// Starts the browser login on a worker thread; the answer arrives as a
+/// `lyrica:spotify` event so the UI never blocks on the redirect.
+#[tauri::command]
+fn spotify_link(app: AppHandle) {
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        let request = {
+            let state = handle.state::<Shared>();
+            let runtime = state.runtime.lock().expect("runtime lock");
+            accounts::spotify::LinkRequest {
+                client_id: runtime.settings.spotify_client_id.clone(),
+                port: runtime.settings.spotify_redirect_port.max(1024),
+                controls: runtime.settings.spotify_controls,
+            }
+        };
+
+        match accounts::spotify::link(&request) {
+            Ok(linked) => {
+                let expires_at = accounts::spotify::store_tokens(&linked.tokens).unwrap_or(0);
+                let profile = accounts::spotify::fetch_profile(&linked.tokens.access).ok();
+
+                {
+                    let state = handle.state::<Shared>();
+                    let mut runtime = state.runtime.lock().expect("runtime lock");
+                    runtime.settings.spotify_expires_at_ms = expires_at;
+                    if let Some((name, product)) = profile {
+                        runtime.settings.spotify_account = name;
+                        runtime.settings.spotify_product = product;
+                    }
+                    runtime.settings.save(&config_path(&handle));
+                }
+
+                emit_snapshot(&handle);
+                let _ = handle.emit("lyrica:spotify", serde_json::json!({ "linked": true }));
+            }
+            Err(error) => {
+                if let Ok(mut spotify) = handle.state::<Shared>().spotify.lock() {
+                    spotify.error = Some(error.clone());
+                }
+                let _ = handle.emit("lyrica:spotify", serde_json::json!({ "error": error }));
+            }
+        }
+    });
+}
+
+#[tauri::command]
+fn spotify_unlink(app: AppHandle) -> accounts::spotify::SpotifyStatus {
+    accounts::spotify::forget_tokens();
+
+    {
+        let state = app.state::<Shared>();
+        let mut runtime = state.runtime.lock().expect("runtime lock");
+        runtime.settings.spotify_account.clear();
+        runtime.settings.spotify_product.clear();
+        runtime.settings.spotify_expires_at_ms = 0;
+        runtime.settings.save(&config_path(&app));
+    }
+    if let Ok(mut spotify) = app.state::<Shared>().spotify.lock() {
+        *spotify = SpotifyState::default();
+    }
+
+    emit_snapshot(&app);
+    spotify_status(app)
+}
+
+#[tauri::command]
+fn spotify_control(
+    app: AppHandle,
+    action: String,
+    value: Option<String>,
+) -> Result<(), String> {
+    let settings = {
+        let state = app.state::<Shared>();
+        let runtime = state.runtime.lock().expect("runtime lock");
+        runtime.settings.clone()
+    };
+
+    let token = accounts::spotify::access_token(&settings)?;
+    accounts::spotify::control(&token, &action, value.as_deref()).map_err(|error| error.message())
+}
+
+/// Polls the linked account: about once a second while something plays, and
+/// much slower when it is paused, idle or backing off after a 429.
+fn start_spotify_poller(app: AppHandle) {
+    std::thread::spawn(move || loop {
+        let (linked, settings) = {
+            let state = app.state::<Shared>();
+            let runtime = state.runtime.lock().expect("runtime lock");
+            (
+                credentials::read(credentials::SPOTIFY_REFRESH).is_some(),
+                runtime.settings.clone(),
+            )
+        };
+
+        if !linked {
+            std::thread::sleep(Duration::from_secs(5));
+            continue;
+        }
+
+        let token = match accounts::spotify::access_token(&settings) {
+            Ok(token) => token,
+            Err(error) => {
+                if let Ok(mut spotify) = app.state::<Shared>().spotify.lock() {
+                    spotify.error = Some(error);
+                    spotify.sample = None;
+                }
+                std::thread::sleep(Duration::from_secs(15));
+                continue;
+            }
+        };
+
+        let wait = match accounts::spotify::fetch_now_playing(&token) {
+            Ok(sample) => {
+                let playing = sample.as_ref().map(|entry| entry.playing).unwrap_or(false);
+                if let Ok(mut spotify) = app.state::<Shared>().spotify.lock() {
+                    spotify.error = None;
+                    spotify.device = sample.as_ref().and_then(|entry| entry.device.clone());
+                    spotify.sample = sample;
+                }
+                if playing {
+                    Duration::from_millis(1_000)
+                } else {
+                    Duration::from_secs(4)
+                }
+            }
+            Err(accounts::spotify::ApiError::RateLimited(seconds)) => {
+                if let Ok(mut spotify) = app.state::<Shared>().spotify.lock() {
+                    spotify.error = Some(accounts::spotify::ApiError::RateLimited(seconds).message());
+                }
+                Duration::from_secs(seconds)
+            }
+            Err(accounts::spotify::ApiError::Unauthorized) => {
+                let _ = credentials::delete(credentials::SPOTIFY_ACCESS);
+                if let Ok(mut spotify) = app.state::<Shared>().spotify.lock() {
+                    spotify.sample = None;
+                    spotify.error = Some(
+                        "Spotify rejected the saved session; link the account again".into(),
+                    );
+                }
+                Duration::from_secs(20)
+            }
+            Err(error) => {
+                if let Ok(mut spotify) = app.state::<Shared>().spotify.lock() {
+                    spotify.error = Some(error.message());
+                }
+                Duration::from_secs(6)
+            }
+        };
+
+        std::thread::sleep(wait);
+    });
+}
+
 fn open_license_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("license") {
         let _ = window.show();
@@ -1453,6 +1634,7 @@ pub fn run() {
                 pipeline,
                 genius_parsing,
                 cider,
+                spotify: Arc::new(Mutex::new(SpotifyState::default())),
             });
 
             let initial_menu = tray_menu(&handle)?;
@@ -1514,6 +1696,8 @@ pub fn run() {
             }
 
             start_poller(handle.clone());
+            start_spotify_poller(handle.clone());
+            set_autostart(autostart_on);
             start_ambient_loop(handle);
             Ok(())
         })
@@ -1580,6 +1764,10 @@ pub fn run() {
             open_preferences,
             open_window,
             pin_style,
+            spotify_status,
+            spotify_link,
+            spotify_unlink,
+            spotify_control,
             license_status,
             activate_license,
             deactivate_license,
@@ -1595,6 +1783,21 @@ fn start_poller(app: AppHandle) {
         std::thread::sleep(Duration::from_millis(POLL_MS));
 
         let playback = {
+            // A linked account sees every device on the account, and its position
+            // is exact, so it wins while the sample is fresh. SMTC stays the
+            // fallback the moment the API goes quiet.
+            let linked = app
+                .state::<Shared>()
+                .spotify
+                .lock()
+                .ok()
+                .and_then(|state| state.sample.clone())
+                .filter(|sample| now_ms() - sample.sampled_at_ms < 4_000)
+                .map(|sample| accounts::spotify::to_local_playback(&sample));
+
+            if let Some(playback) = linked {
+                playback
+            } else {
             let shared_cider = app.state::<Shared>().cider.clone();
             let cider = shared_cider
                 .read()
@@ -1616,6 +1819,7 @@ fn start_poller(app: AppHandle) {
                 }
             } else {
                 smtc
+            }
             }
         };
         let mut request: Option<(String, TrackQuery)> = None;

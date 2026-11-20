@@ -11,6 +11,9 @@ pub const MUSIXMATCH_KEY: &str = "lyrica/musixmatch-key";
 pub const CIDER_TOKEN: &str = "lyrica/cider-token";
 /// Credential target holding the signed license key.
 pub const LICENSE_KEY: &str = "lyrica/license-key";
+/// Spotify OAuth tokens (access and refresh) for the linked account.
+pub const SPOTIFY_ACCESS: &str = "lyrica/spotify-access";
+pub const SPOTIFY_REFRESH: &str = "lyrica/spotify-refresh";
 
 pub fn read(name: &str) -> Option<String> {
     imp::read(name)
