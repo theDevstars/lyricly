@@ -1672,6 +1672,49 @@ fn set_display_style(app: AppHandle, monitor: usize, style: Option<String>) {
     emit_snapshot(&app);
 }
 
+/// A clean second window showing only the lyric style — draggable, resizable,
+/// and meant to be captured by OBS as a window or game source.
+fn ensure_stream_window(app: &AppHandle) -> Option<WebviewWindow> {
+    if let Some(window) = app.get_webview_window("stream") {
+        return Some(window);
+    }
+
+    let monitor = app.primary_monitor().ok().flatten();
+    let (width, height) = monitor
+        .as_ref()
+        .map(|monitor| {
+            let scale = monitor.scale_factor();
+            let size = monitor.size().to_logical::<f64>(scale);
+            (size.width * 0.7, size.height * 0.7)
+        })
+        .unwrap_or((1280.0, 720.0));
+
+    let window = WebviewWindowBuilder::new(app, "stream", tauri::WebviewUrl::App("index.html".into()))
+        .title("Lyrica Stream")
+        .inner_size(width, height)
+        .min_inner_size(320.0, 180.0)
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .skip_taskbar(true)
+        .resizable(true)
+        .visible(false)
+        .center()
+        .build()
+        .ok()?;
+
+    Some(window)
+}
+
+#[tauri::command]
+fn set_stream_window(app: AppHandle, on: bool) {
+    save_settings(&app, |settings| settings.stream_window = on);
+    if let Some(window) = ensure_stream_window(&app) {
+        let _ = if on { window.show() } else { window.hide() };
+    }
+    emit_snapshot(&app);
+}
+
 /// One display setting for the whole app: the overlay, Ambient and Late Night
 /// all follow it.
 #[tauri::command]
@@ -2118,6 +2161,7 @@ pub fn run() {
             let capture_on = settings.stream_safe;
             let late_hotkey = settings.late_night_hotkey.clone();
             let autostart_on = settings.autostart;
+            let stream_window_on = settings.stream_window;
             let wallpaper_on = settings.wallpaper_layer;
             let ambient_on = settings.ambient_enabled;
 
@@ -2250,6 +2294,11 @@ pub fn run() {
             start_spotify_poller(handle.clone());
             set_autostart(autostart_on);
             sync_lyric_layers(&handle);
+            if stream_window_on {
+                if let Some(window) = ensure_stream_window(&handle) {
+                    let _ = window.show();
+                }
+            }
             start_ambient_loop(handle);
             Ok(())
         })
@@ -2308,6 +2357,7 @@ pub fn run() {
             set_display_index,
             set_display_style,
             set_page_monitor,
+            set_stream_window,
             show_desktop_scene,
             hide_desktop_scene,
             refresh_desktop_scene,

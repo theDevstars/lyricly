@@ -29,11 +29,15 @@ export const SUPPORT: Record<string, string[]> = {
 
 /** Effects switched on for this style, filtered to what it supports. */
 export function effectsFor(style: LyricStyle, enabled: Record<string, string> | undefined): Effect[] {
-  if (!enabled) return [];
+  const saved = enabled ?? {};
   return EFFECTS.filter((effect) => {
     const supported = SUPPORT[effect.id];
     if (supported && supported.length > 0 && !supported.includes(style.id)) return false;
-    return enabled[effect.id] === 'on';
+    const choice = saved[effect.id];
+    if (choice === 'on') return true;
+    if (choice === 'off') return false;
+    // A style can ship its own sensible defaults for effects it supports.
+    return Boolean(style.defaultEffects?.includes(effect.id));
   });
 }
 

@@ -79,7 +79,7 @@ const siteConfig = {
     windowsUrl: "/downloads/Lyrica-Setup-2.0.0.exe",
     fileName: "Lyrica-Setup-2.0.0.exe",
     /** SHA-256 of that exact file. Regenerate whenever you replace the installer. */
-    sha256: "168c8af221b1723166250343a4a2549a049d72f074ea26be462a90b78399e2a7",
+    sha256: "bcab54cb7cfe3cd3f83b161f9a18322dc158c0858110e1bc73d5222ee494aadf",
     sizeLabel: "3.6 MB",
     /** Add a real public report before showing the link. */
     virusTotalUrl: "",
@@ -133,6 +133,47 @@ const siteConfig = {
     { label: "Contact", href: "mailto:hello@lyrica.app" },
     { label: "Join Discord", href: DISCORD_INVITE, external: true },
   ] satisfies NavLink[],
+
+  footerGroups: [
+    {
+      title: "Product",
+      links: [
+        { label: "Styles", href: "/#styles" },
+        { label: "Playground", href: "/playground" },
+        { label: "Style quiz", href: "/quiz" },
+        { label: "Compare", href: "/compare" },
+        { label: "Setups", href: "/setups" },
+      ],
+    },
+    {
+      title: "Learn",
+      links: [
+        { label: "Setup guide", href: "/setup" },
+        { label: "Troubleshoot", href: "/troubleshoot" },
+        { label: "Docs", href: "/docs" },
+        { label: "Tutorials", href: "/tutorials" },
+        { label: "Requirements", href: "/requirements" },
+      ],
+    },
+    {
+      title: "About",
+      links: [
+        { label: "Blog", href: "/blog" },
+        { label: "Changelog", href: "/changelog" },
+        { label: "Roadmap", href: "/roadmap" },
+        { label: "Creators", href: "/creators" },
+        { label: "Referrals", href: "/referrals" },
+      ],
+    },
+    {
+      title: "Legal",
+      links: [
+        { label: "Privacy Policy", href: "/privacy" },
+        { label: "Terms of Service", href: "/terms" },
+        { label: "Contact", href: "mailto:hello@lyrica.app" },
+      ],
+    },
+  ] satisfies { title: string; links: NavLink[] }[],
 
   /** Optional, cookie-free analytics. Leave empty to ship no analytics at all. */
   analytics: {

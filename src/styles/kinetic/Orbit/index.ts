@@ -16,6 +16,7 @@ export const orbit: LyricStyle = {
   eyebrow: 'Kinetic type',
   sample: 'Orbit',
   isNew: true,
+  defaultEffects: ['beat'],
   usesIcons: false,
   gradient: ['#05102b', '#7b6bff'],
   palette: {

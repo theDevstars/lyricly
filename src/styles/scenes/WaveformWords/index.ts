@@ -16,6 +16,7 @@ export const waveformWords: LyricStyle = {
   eyebrow: 'Motion scenes',
   sample: 'Wave',
   isNew: true,
+  defaultEffects: ['reactive'],
   usesIcons: false,
   gradient: ['#01120f', '#25e6a8'],
   palette: {

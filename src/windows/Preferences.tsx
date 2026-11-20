@@ -11,6 +11,7 @@ import {
   setDisplayIndex,
   setDisplayStyle,
   setPageMonitor,
+  setStreamWindow,
   setCiderToken,
   spotifyLink,
   spotifyStatus,
@@ -122,6 +123,12 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
     const next = { ...draft, ...patch };
     setDraft(next);
     void updateSettings(next);
+  };
+
+  const styleOption = (key: string): string | undefined => (draft.styleOptions ?? {})[key];
+
+  const commitStyleOption = (key: string, value: string) => {
+    commit({ styleOptions: { ...(draft.styleOptions ?? {}), [key]: value } });
   };
 
   const monitors = useMemo(() => [0, 1, 2, 3], []);
@@ -701,6 +708,105 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
               }
             }}
           />
+
+          <label className="field">
+            <span>Context Window lines</span>
+            <input
+              type="range"
+              min={3}
+              max={7}
+              value={Number(styleOption('context-window.contextLines') ?? 5)}
+              onChange={(event) =>
+                commitStyleOption('context-window.contextLines', event.target.value)
+              }
+            />
+            <output>{Number(styleOption('context-window.contextLines') ?? 5)} lines</output>
+          </label>
+
+          <label className="field">
+            <span>Dual Screen Split pane</span>
+            <select
+              value={String(styleOption('dual-screen-split.pane') ?? 'both')}
+              onChange={(event) => commitStyleOption('dual-screen-split.pane', event.target.value)}
+            >
+              <option value="both">Both, side by side</option>
+              <option value="main">Big type only</option>
+              <option value="wall">Full lyrics only</option>
+            </select>
+          </label>
+
+          <div className="toggle-row">
+            <div>
+              <span>Stream window (OBS)</span>
+              <small>A clean second window with only the lyric style, for window capture.</small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={Boolean(draft.streamWindow)}
+                onChange={(event) => {
+                  commit({ streamWindow: event.target.checked });
+                  void setStreamWindow(event.target.checked);
+                }}
+              />
+              <i />
+            </label>
+          </div>
+
+          <label className="field">
+            <span>Style randomizer</span>
+            <select
+              value={draft.randomizerMode ?? 'off'}
+              onChange={(event) => commit({ randomizerMode: event.target.value })}
+            >
+              <option value="off">Off</option>
+              <option value="chorus">Every chorus</option>
+              <option value="songs">Every few songs</option>
+            </select>
+          </label>
+
+          {draft.randomizerMode === 'songs' && (
+            <label className="field">
+              <span>Switch every</span>
+              <input
+                type="range"
+                min={1}
+                max={10}
+                value={draft.randomizerEverySongs ?? 3}
+                onChange={(event) => commit({ randomizerEverySongs: Number(event.target.value) })} />
+              <output>{draft.randomizerEverySongs ?? 3} songs</output>
+            </label>
+          )}
+
+          <div className="toggle-row">
+            <div>
+              <span>Style by mood</span>
+              <small>Pick the style pool from the song's energy.</small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={Boolean(draft.moodMode)}
+                onChange={(event) => commit({ moodMode: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
+
+          <div className="toggle-row">
+            <div>
+              <span>Sing-along scoring</span>
+              <small>Microphone, scored locally; nothing is recorded or sent.</small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={Boolean(draft.singAlong)}
+                onChange={(event) => commit({ singAlong: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
 
           <label className="field">
             <span>Window opacity</span>

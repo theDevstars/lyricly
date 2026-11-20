@@ -76,6 +76,14 @@ export interface Settings {
   styleEffects: Record<string, string>;
   /** "<styleId>.<option>" → value. */
   styleOptions: Record<string, string>;
+  /** A clean window for OBS capture. */
+  streamWindow: boolean;
+  /** "off", "chorus" or "songs". */
+  randomizerMode: 'off' | 'chorus' | 'songs' | string;
+  randomizerEverySongs: number;
+  randomizerPool: string[];
+  moodMode: boolean;
+  singAlong: boolean;
   ambientIdleMinutes: number;
   ambientHotkey: string;
   tapSyncHotkey: string;

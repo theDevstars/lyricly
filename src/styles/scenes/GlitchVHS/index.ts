@@ -16,6 +16,7 @@ export const glitchVhs: LyricStyle = {
   eyebrow: 'Motion scenes',
   sample: 'Glitch',
   isNew: true,
+  defaultEffects: ['reactive'],
   usesIcons: false,
   gradient: ['#0b0a14', '#ff3ea5'],
   palette: {

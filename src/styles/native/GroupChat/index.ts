@@ -16,6 +16,7 @@ export const groupChat: LyricStyle = {
   eyebrow: 'Native Design',
   sample: 'hey',
   isNew: true,
+  defaultEffects: ['beat'],
   usesIcons: false,
   gradient: ['#101322', '#5865f2'],
   palette: {

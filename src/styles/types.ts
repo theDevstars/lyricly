@@ -89,6 +89,8 @@ export interface LyricStyle {
   isNew?: boolean;
   /** Effect ids this style supports behind the shared effects layer. */
   effects?: string[];
+  /** Effects on by default for this style, unless the user turns them off. */
+  defaultEffects?: string[];
   /** New styles can be hidden while they are being built. */
   status?: StyleStatus;
   introducedIn?: string;

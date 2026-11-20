@@ -15,6 +15,7 @@ export const karaokeSweep: LyricStyle = {
   eyebrow: 'Kinetic type',
   sample: 'Sing it',
   isNew: true,
+  defaultEffects: ['emphasis'],
   usesIcons: false,
   gradient: ['#12021b', '#ff2e88'],
   palette: {

@@ -120,6 +120,16 @@ pub struct Settings {
     pub style_effects: std::collections::BTreeMap<String, String>,
     /// Per-style options, keyed by "<styleId>.<option>".
     pub style_options: std::collections::BTreeMap<String, String>,
+    /// A second window showing only the selected style, for OBS capture.
+    pub stream_window: bool,
+    /// "off", "chorus" or "songs": auto-switch styles from the pool.
+    pub randomizer_mode: String,
+    pub randomizer_every_songs: u32,
+    pub randomizer_pool: Vec<String>,
+    /// Pick the style pool from the song's energy.
+    pub mood_mode: bool,
+    /// Opt-in microphone scoring; nothing leaves the machine.
+    pub sing_along: bool,
     pub color_auto_sync: bool,
     pub color_text: String,
     pub color_highlight: String,
@@ -227,6 +237,12 @@ impl Default for Settings {
             photosensitive: false,
             style_effects: std::collections::BTreeMap::new(),
             style_options: std::collections::BTreeMap::new(),
+            stream_window: false,
+            randomizer_mode: "off".into(),
+            randomizer_every_songs: 3,
+            randomizer_pool: Vec::new(),
+            mood_mode: false,
+            sing_along: false,
             color_auto_sync: true,
             color_text: "#F5F7FF".into(),
             color_highlight: "#FF5C7A".into(),

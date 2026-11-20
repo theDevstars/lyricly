@@ -289,6 +289,17 @@ body[data-window='lyrics-layer'] {
   background: transparent;
 }
 
+body[data-window='stream'] {
+  background: transparent;
+  overflow: hidden;
+}
+
+/* The OBS window: no chrome, lyrics edge to edge. */
+.stream-frame {
+  position: fixed;
+  inset: 0;
+}
+
 /* A display with its own style: lyrics only, edge to edge. */
 .lyrics-layer {
   position: fixed;
@@ -357,6 +368,37 @@ body[data-window='lyrics-layer'] {
 
 .stage {
   position: relative;
+}
+
+.sing-along {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(10, 10, 14, 0.55);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.sing-along i {
+  display: block;
+  height: 3px;
+  min-width: 4px;
+  max-width: 90px;
+  border-radius: 999px;
+  background: var(--accent, #ff5c8a);
+  transition: width 160ms linear;
+}
+
+.sing-along em {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
 }
 
 .tap-badge {

@@ -17,6 +17,7 @@ export const tunnel: LyricStyle = {
   eyebrow: 'Kinetic type',
   sample: 'Rush',
   isNew: true,
+  defaultEffects: ['particles', 'reactive'],
   usesIcons: false,
   gradient: ['#02030a', '#39d6ff'],
   palette: {

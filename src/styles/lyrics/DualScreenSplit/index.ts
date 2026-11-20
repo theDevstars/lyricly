@@ -5,8 +5,8 @@ import { panesFor, wallRows } from './model';
 
 /**
  * Dual Screen Split — big single-line type in one pane and the scrolling wall in
- * the other. On a monitor that has its own profile this pairs with a second
- * display running the other pane; on one screen it splits in two.
+ * the other. Set the `pane` style option to run one pane per display: give
+ * display 1 "main" and display 2 "wall" and the two screens pair up.
  */
 export const dualScreenSplit: LyricStyle = {
   id: 'dual-screen-split',
@@ -36,62 +36,70 @@ export const dualScreenSplit: LyricStyle = {
       return;
     }
 
+    const pane = String(state.styleOptions?.pane ?? 'both');
+    const showMain = pane !== 'wall';
+    const showWall = pane !== 'main';
     const panes = panesFor(width, height);
 
-    // Wall pane: the surrounding lines, current one lit.
-    const rowSize = Math.min(panes.wall.height * 0.06, panes.wall.width / 12);
-    const rowHeight = rowSize * 1.8;
-    const rows = wallRows(panes.wall.height, rowHeight);
-    const from = Math.max(0, state.activeIndex - Math.floor(rows / 2));
-    const to = Math.min(state.lines.length - 1, from + rows - 1);
+    if (showWall) {
+      // Wall pane: the surrounding lines, the current one lit.
+      const wall = showMain ? panes.wall : { x: 0, y: 0, width, height };
+      const rowSize = Math.min(wall.height * 0.06, wall.width / 12);
+      const rowHeight = rowSize * 1.8;
+      const rows = wallRows(wall.height, rowHeight);
+      const from = Math.max(0, state.activeIndex - Math.floor(rows / 2));
+      const to = Math.min(state.lines.length - 1, from + rows - 1);
 
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(panes.wall.x, panes.wall.y, panes.wall.width, panes.wall.height);
-    ctx.clip();
-    ctx.fillStyle = 'rgba(158,197,255,0.04)';
-    ctx.fillRect(panes.wall.x, panes.wall.y, panes.wall.width, panes.wall.height);
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(wall.x, wall.y, wall.width, wall.height);
+      ctx.clip();
+      ctx.fillStyle = 'rgba(158,197,255,0.04)';
+      ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
 
-    for (let index = from; index <= to; index += 1) {
-      const row = state.lines[index];
-      if (!row.text.trim()) continue;
-      const y = panes.wall.y + (index - from) * rowHeight + rowHeight * 0.8;
-      const active = index === state.activeIndex;
-      ctx.font = fontOf(rowSize, active ? 700 : 500);
-      ctx.fillStyle = active ? palette.accent : palette.dim;
-      let text = row.text;
-      while (text.length > 4 && ctx.measureText(text).width > panes.wall.width * 0.9) {
-        text = `${text.slice(0, -2)}…`;
+      for (let index = from; index <= to; index += 1) {
+        const row = state.lines[index];
+        if (!row.text.trim()) continue;
+        const y = wall.y + (index - from) * rowHeight + rowHeight * 0.8;
+        const active = index === state.activeIndex;
+        ctx.font = fontOf(rowSize, active ? 700 : 500);
+        ctx.fillStyle = active ? palette.accent : palette.dim;
+        let text = row.text;
+        while (text.length > 4 && ctx.measureText(text).width > wall.width * 0.9) {
+          text = `${text.slice(0, -2)}…`;
+        }
+        ctx.fillText(text, wall.x + wall.width * 0.06, y);
       }
-      ctx.fillText(text, panes.wall.x + panes.wall.width * 0.06, y);
+      ctx.restore();
     }
-    ctx.restore();
 
-    // Main pane: the line, big.
-    const words = wordsOf(line);
-    const size = Math.min(panes.main.height * 0.11, panes.main.width / 9);
-    const laid = layoutWords(words, (text) => ctx.measureText(text).width, size * 0.28, panes.main.width * 0.86, size);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const lineHeight = size * 1.24;
-    const top = panes.main.y + panes.main.height / 2 - (laid.rows.length * lineHeight) / 2;
+    if (showMain) {
+      // Main pane: the line, big.
+      const main = showWall ? panes.main : { x: 0, y: 0, width, height };
+      const words = wordsOf(line);
+      const size = Math.min(main.height * 0.11, main.width / 9);
+      const laid = layoutWords(words, (text) => ctx.measureText(text).width, size * 0.28, main.width * 0.86, size);
+      const lineHeight = size * 1.24;
+      const top = main.y + main.height / 2 - (laid.rows.length * lineHeight) / 2;
 
-    laid.rows.forEach((row, rowIndex) => {
-      const rowWidth = laid.rowWidths[rowIndex] ?? 0;
-      let x = panes.main.x + panes.main.width / 2 - rowWidth / 2;
-      const y = top + rowIndex * lineHeight + lineHeight / 2;
-      for (const item of row) {
-        ctx.font = fontOf(size, item.wordIndex === state.wordIndex ? 800 : 600);
-        ctx.textAlign = 'left';
-        ctx.fillStyle = item.wordIndex === state.wordIndex ? palette.accent : palette.text;
-        ctx.fillText(item.text, x, y);
-        x += item.width + size * 0.28;
-      }
-    });
+      ctx.textBaseline = 'middle';
+      laid.rows.forEach((row, rowIndex) => {
+        const rowWidth = laid.rowWidths[rowIndex] ?? 0;
+        let x = main.x + main.width / 2 - rowWidth / 2;
+        const y = top + rowIndex * lineHeight + lineHeight / 2;
+        for (const item of row) {
+          ctx.font = fontOf(size, item.wordIndex === state.wordIndex ? 800 : 600);
+          ctx.textAlign = 'left';
+          ctx.fillStyle = item.wordIndex === state.wordIndex ? palette.accent : palette.text;
+          ctx.fillText(item.text, x, y);
+          x += item.width + size * 0.28;
+        }
+      });
+    }
 
-    if (panes.split) {
+    if (panes.split && showMain && showWall) {
       ctx.strokeStyle = 'rgba(158,197,255,0.12)';
       ctx.beginPath();
       ctx.moveTo(panes.main.width, 0);

@@ -6,6 +6,9 @@ import type { Snapshot } from './types';
 import { getState, onState } from './lib/api';
 import { LyricsWindow } from './windows/LyricsWindow';
 import { LyricsLayerWindow } from './windows/LyricsLayerWindow';
+import { StreamWindow } from './windows/StreamWindow';
+import { StyleAutomation } from './qol/StyleAutomation';
+import { STYLES } from './styles/registry';
 import { AmbientWindow } from './windows/AmbientWindow';
 import { SceneRoot } from './scene/SceneRoot';
 import { LateNightWindow } from './windows/LateNightWindow';
@@ -50,6 +53,15 @@ function Shell() {
   if (label.startsWith('late-night')) return <LateNightWindow snapshot={snapshot} />;
   if (label === 'window') return <MainWindow snapshot={snapshot} />;
   if (label === 'license') return <LicenseDialog />;
+  if (label === 'stream') return <StreamWindow snapshot={snapshot} />;
+  if (label === 'lyrics') {
+    return (
+      <>
+        <StyleAutomation snapshot={snapshot} allIds={STYLES.map((style) => style.id)} />
+        <LyricsWindow snapshot={snapshot} />
+      </>
+    );
+  }
   return <LyricsWindow snapshot={snapshot} />;
 }
 

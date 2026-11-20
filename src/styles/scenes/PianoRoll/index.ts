@@ -15,6 +15,7 @@ export const pianoRoll: LyricStyle = {
   eyebrow: 'Motion scenes',
   sample: '♪ ♩ ♫',
   isNew: true,
+  defaultEffects: ['beat', 'particles'],
   usesIcons: false,
   gradient: ['#0a0618', '#8fd3ff'],
   palette: {

@@ -16,6 +16,7 @@ export const posterCollage: LyricStyle = {
   eyebrow: 'Kinetic type',
   sample: 'Poster',
   isNew: true,
+  defaultEffects: ['rhyme'],
   usesIcons: false,
   gradient: ['#1b1408', '#e8e0cd'],
   palette: {

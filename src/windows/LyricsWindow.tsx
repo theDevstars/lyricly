@@ -7,6 +7,7 @@ import { StyleCanvas } from '../components/StyleCanvas';
 import { Preferences } from './Preferences';
 import { forgetSong, nudge, rememberSong, setStyle, togglePlayPause } from '../lib/api';
 import { useSmartHide } from '../qol/useSmartHide';
+import { useSingAlong } from '../qol/useSingAlong';
 
 interface LyricsWindowProps {
   snapshot: Snapshot;
@@ -25,6 +26,10 @@ export function LyricsWindow({ snapshot }: LyricsWindowProps) {
   const hasTrack = Boolean(snapshot.playback.title);
   const smart = useSmartHide(snapshot);
   const hideLyrics = smart.hidden || smart.paused;
+  const singAlong = useSingAlong(
+    Boolean(snapshot.settings.singAlong),
+    playing && Boolean(snapshot.lyrics),
+  );
 
   const remember = async (scope: 'song' | 'artist' | 'album') => {
     setRememberOpen(false);
@@ -223,6 +228,13 @@ export function LyricsWindow({ snapshot }: LyricsWindowProps) {
         {snapshot.tapSync?.active && (
           <div className="tap-badge">
             tap · {snapshot.tapSync.recorded}/{snapshot.tapSync.total}
+          </div>
+        )}
+        {snapshot.settings.singAlong && !hideLyrics && (
+          <div className="sing-along" title="Microphone scoring stays on this machine">
+            <span>Sing along</span>
+            <i style={{ width: `${Math.round(singAlong.score * 100)}%` }} />
+            <em>{singAlong.error ? 'mic off' : `${Math.round(singAlong.score * 100)}%`}</em>
           </div>
         )}
         {smart.paused && !snapshot.qol.hideOverlays && !smart.repeated && (
