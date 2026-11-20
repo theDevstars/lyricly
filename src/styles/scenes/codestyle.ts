@@ -19,7 +19,7 @@ export function makeCodestyle(withIcons: boolean): LyricStyle {
     name: withIcons ? 'Codestyle Visual' : 'Codestyle',
     description: withIcons
       ? 'Codestyle, with icons beside the words that have one.'
-      : 'The lyric typed out as code, with a blinking red cursor.',
+      : 'The lyric typed out as code, under a blinking red cursor.',
     group: 'scenes',
     usesIcons: withIcons,
     gradient: withIcons ? ['#1a1b26', '#414868'] : ['#111318', '#20242e'],

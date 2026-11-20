@@ -1,94 +1,21 @@
-//! Tray icon and menu. The app has no taskbar button, so this is the only
-//! permanent entry point.
+//! Tray icon and the short mid-song menu. Everything else lives in the Window:
+//! the tray only carries quick switches you want without leaving the music.
 
-use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
+use tauri::menu::Menu;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, Wry};
+use tauri::AppHandle;
 
-pub const ITEM_SHOW: &str = "show-lyrics";
-pub const ITEM_AMBIENT: &str = "toggle-ambient";
-pub const ITEM_WALLPAPER: &str = "toggle-wallpaper";
-pub const ITEM_PREFS: &str = "preferences";
-pub const ITEM_AUTOSTART: &str = "toggle-autostart";
-pub const ITEM_CAPTURE: &str = "toggle-capture";
+pub const ITEM_OPEN: &str = "open-window";
+pub const ITEM_AWAKE: &str = "toggle-awake";
+pub const ITEM_DESKTOP: &str = "toggle-desktop";
 pub const ITEM_LATE_NIGHT: &str = "toggle-late-night";
+pub const ITEM_LICENSE: &str = "license";
 pub const ITEM_QUIT: &str = "quit";
+pub const ITEM_SIZE_PREFIX: &str = "size:";
+pub const ITEM_DISPLAY_PREFIX: &str = "display:";
+pub const ITEM_STYLE_PREFIX: &str = "style:";
 
-pub struct TrayState {
-    pub ambient: CheckMenuItem<Wry>,
-    pub wallpaper: CheckMenuItem<Wry>,
-    pub autostart: CheckMenuItem<Wry>,
-    pub capture: CheckMenuItem<Wry>,
-    pub late_night: CheckMenuItem<Wry>,
-}
-
-impl TrayState {
-    pub fn sync(
-        &self,
-        ambient: bool,
-        wallpaper: bool,
-        autostart: bool,
-        capture: bool,
-        late_night: bool,
-    ) {
-        let _ = self.ambient.set_checked(ambient);
-        let _ = self.wallpaper.set_checked(wallpaper);
-        let _ = self.autostart.set_checked(autostart);
-        let _ = self.capture.set_checked(capture);
-        let _ = self.late_night.set_checked(late_night);
-    }
-}
-
-pub fn build(
-    app: &AppHandle,
-    ambient: bool,
-    wallpaper: bool,
-    autostart: bool,
-    capture: bool,
-    late_night: bool,
-) -> tauri::Result<()> {
-    let show = MenuItem::with_id(app, ITEM_SHOW, "Show lyrics", true, None::<&str>)?;
-    let ambient_item = CheckMenuItem::with_id(app, ITEM_AMBIENT, "Ambient mode", true, ambient, None::<&str>)?;
-    let wallpaper_item =
-        CheckMenuItem::with_id(app, ITEM_WALLPAPER, "Wallpaper layer", true, wallpaper, None::<&str>)?;
-    let prefs = MenuItem::with_id(app, ITEM_PREFS, "Preferences…", true, None::<&str>)?;
-    let autostart_item =
-        CheckMenuItem::with_id(app, ITEM_AUTOSTART, "Start with Windows", true, autostart, None::<&str>)?;
-    let capture_item = CheckMenuItem::with_id(
-        app,
-        ITEM_CAPTURE,
-        "Hide from screen capture",
-        true,
-        capture,
-        None::<&str>,
-    )?;
-    let late_night_item = CheckMenuItem::with_id(
-        app,
-        ITEM_LATE_NIGHT,
-        "Late Night ambient",
-        true,
-        late_night,
-        None::<&str>,
-    )?;
-    let quit = MenuItem::with_id(app, ITEM_QUIT, "Quit Lyrica", true, None::<&str>)?;
-
-    let menu = Menu::with_items(
-        app,
-        &[
-            &show,
-            &PredefinedMenuItem::separator(app)?,
-            &ambient_item,
-            &wallpaper_item,
-            &capture_item,
-            &late_night_item,
-            &PredefinedMenuItem::separator(app)?,
-            &prefs,
-            &autostart_item,
-            &PredefinedMenuItem::separator(app)?,
-            &quit,
-        ],
-    )?;
-
+pub fn build(app: &AppHandle, menu: Menu<tauri::Wry>) -> tauri::Result<()> {
     let mut builder = TrayIconBuilder::with_id("main")
         .menu(&menu)
         .show_menu_on_left_click(false)
@@ -101,7 +28,7 @@ pub fn build(
                 ..
             } = event
             {
-                crate::show_lyrics_window(tray.app_handle());
+                crate::show_main_window(tray.app_handle());
             }
         });
 
@@ -110,14 +37,11 @@ pub fn build(
     }
 
     builder.build(app)?;
-
-    app.manage(TrayState {
-        ambient: ambient_item,
-        wallpaper: wallpaper_item,
-        autostart: autostart_item,
-        capture: capture_item,
-        late_night: late_night_item,
-    });
-
     Ok(())
+}
+
+pub fn sync_menu(app: &AppHandle, menu: Menu<tauri::Wry>) {
+    if let Some(tray) = app.tray_by_id("main") {
+        let _ = tray.set_menu(Some(menu));
+    }
 }

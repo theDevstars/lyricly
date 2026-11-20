@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { Snapshot } from '../types';
 import type { LyricStyle, StyleState } from '../styles/types';
 import { activeLineIndex, playbackPosition, wordAt } from '../lib/timing';
+import { resolvePalette } from '../lib/colors';
 
 interface StyleCanvasProps {
   snapshot: Snapshot;
@@ -79,7 +80,7 @@ export function StyleCanvas({ snapshot, style, className }: StyleCanvasProps) {
           artist: snapshot.playback.artist,
           app: snapshot.playback.app,
         },
-        palette: activeStyle.palette,
+        palette: resolvePalette(activeStyle.palette, snapshot.settings),
         time: performance.now() - startedAt.current,
         width,
         height,

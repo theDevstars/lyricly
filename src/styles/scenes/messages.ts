@@ -130,9 +130,9 @@ function drawTyping(
  */
 export const messages: LyricStyle = {
   id: 'messages',
-  name: 'Messages',
-  description: 'The song plays out as an iMessage thread, one bubble per line.',
-  group: 'scenes',
+  name: 'Native Design',
+  description: 'The song as a message thread, a bubble for every line.',
+  group: 'native',
   usesIcons: false,
   gradient: ['#0a84ff', '#05060a'],
   palette: {

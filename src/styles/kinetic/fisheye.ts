@@ -11,7 +11,7 @@ export function makeFisheye(withIcons: boolean): LyricStyle {
     id: withIcons ? 'fisheye-visual' : 'fisheye',
     name: withIcons ? 'Fisheye Visual' : 'Fisheye',
     description: withIcons
-      ? 'Fisheye, with an icon beside every word that has one.'
+      ? 'Fisheye, with icons beside the words that have one.'
       : 'A tight stack of three words, bulging through a lens.',
     group: 'kinetic',
     usesIcons: withIcons,

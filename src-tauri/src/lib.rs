@@ -1,4 +1,5 @@
 mod credentials;
+mod license;
 mod lyrics;
 mod media;
 mod overlay;
@@ -15,6 +16,7 @@ use settings::{Settings, WindowState};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::{
     AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewWindow,
     WebviewWindowBuilder, WindowEvent,
@@ -774,25 +776,40 @@ fn idle_seconds() -> u64 {
 }
 
 pub fn handle_tray_event(app: &AppHandle, id: &str) {
+    if let Some(style) = id.strip_prefix(tray::ITEM_STYLE_PREFIX) {
+        set_style(app.clone(), style.to_string());
+        return;
+    }
+    if let Some(value) = id.strip_prefix(tray::ITEM_SIZE_PREFIX) {
+        if let Ok(percent) = value.parse::<f32>() {
+            set_text_scale(app.clone(), percent / 100.0);
+        }
+        return;
+    }
+    if let Some(value) = id.strip_prefix(tray::ITEM_DISPLAY_PREFIX) {
+        if let Ok(index) = value.parse::<usize>() {
+            set_display(app.clone(), index);
+        }
+        return;
+    }
+
     match id {
-        tray::ITEM_SHOW => {
-            show_lyrics_window(app);
+        tray::ITEM_OPEN => show_main_window(app),
+        tray::ITEM_AWAKE => {
+            let on = {
+                let state = app.state::<Shared>();
+                let runtime = state.runtime.lock().expect("runtime lock");
+                runtime.settings.keep_awake
+            };
+            set_keep_awake(app.clone(), !on);
         }
-        tray::ITEM_PREFS => show_prefs(app),
-        tray::ITEM_AMBIENT => {
-            let on = !ambient_window(app).map(|w| w.is_visible().unwrap_or(false)).unwrap_or(false);
-            set_ambient(app, on);
-        }
-        tray::ITEM_WALLPAPER => {
-            let state = app.state::<Shared>();
-            let mut runtime = state.runtime.lock().expect("runtime lock");
-            runtime.settings.wallpaper_layer = !runtime.settings.wallpaper_layer;
-            let enabled = runtime.settings.wallpaper_layer;
-            let path = config_path(app);
-            runtime.settings.save(&path);
-            drop(runtime);
-            apply_wallpaper_layer(app, enabled);
-            sync_tray(app);
+        tray::ITEM_DESKTOP => {
+            let on = {
+                let state = app.state::<Shared>();
+                let runtime = state.runtime.lock().expect("runtime lock");
+                runtime.settings.show_on_desktop
+            };
+            set_show_on_desktop(app.clone(), !on);
         }
         tray::ITEM_LATE_NIGHT => {
             let on = {
@@ -802,43 +819,141 @@ pub fn handle_tray_event(app: &AppHandle, id: &str) {
             };
             apply_late_night(app, !on);
         }
-        tray::ITEM_CAPTURE => {
-            let on = {
-                let state = app.state::<Shared>();
-                let runtime = state.runtime.lock().expect("runtime lock");
-                runtime.settings.stream_safe
-            };
-            set_stream_safe(app, !on);
-        }
-        tray::ITEM_AUTOSTART => {
-            let state = app.state::<Shared>();
-            let mut runtime = state.runtime.lock().expect("runtime lock");
-            runtime.settings.autostart = !runtime.settings.autostart;
-            let enabled = runtime.settings.autostart;
-            let path = config_path(app);
-            runtime.settings.save(&path);
-            drop(runtime);
-            set_autostart(enabled);
-            sync_tray(app);
-            emit_snapshot(app);
-        }
+        tray::ITEM_LICENSE => open_license_window(app),
         tray::ITEM_QUIT => app.exit(0),
         _ => {}
     }
 }
 
-fn sync_tray(app: &AppHandle) {
-    let state = app.state::<Shared>();
-    let runtime = state.runtime.lock().expect("runtime lock");
-    let ambient = ambient_window(app).map(|w| w.is_visible().unwrap_or(false)).unwrap_or(false);
-    let wallpaper = runtime.settings.wallpaper_layer;
-    let autostart = runtime.settings.autostart;
-    let capture = runtime.settings.stream_safe;
-    let late_night = runtime.late_night;
-    drop(runtime);
+/// The short mid-song menu: what you actually reach for without leaving the
+/// music. Everything else lives in the Window.
+fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    let (active, pinned, awake, desktop, scale, monitor, late_on) = {
+        let state = app.state::<Shared>();
+        let runtime = state.runtime.lock().expect("runtime lock");
+        (
+            runtime.settings.style.clone(),
+            runtime.settings.pinned_styles.clone(),
+            runtime.settings.keep_awake,
+            runtime.settings.show_on_desktop,
+            runtime.settings.font_scale,
+            runtime.settings.ambient_monitor,
+            runtime.late_night,
+        )
+    };
 
-    if let Some(tray_state) = app.try_state::<tray::TrayState>() {
-        tray_state.sync(ambient, wallpaper, autostart, capture, late_night);
+    let mut items: Vec<Box<dyn tauri::menu::IsMenuItem<tauri::Wry>>> = Vec::new();
+    items.push(Box::new(MenuItem::with_id(
+        app,
+        tray::ITEM_OPEN,
+        "Open Lyrica",
+        true,
+        None::<&str>,
+    )?));
+    items.push(Box::new(PredefinedMenuItem::separator(app)?));
+
+    if pinned.is_empty() {
+        items.push(Box::new(MenuItem::with_id(
+            app,
+            "pinned-hint",
+            "Pin styles in the window",
+            false,
+            None::<&str>,
+        )?));
+    } else {
+        for id in &pinned {
+            items.push(Box::new(CheckMenuItem::with_id(
+                app,
+                format!("{}{}", tray::ITEM_STYLE_PREFIX, id),
+                style_label(id),
+                true,
+                *id == active,
+                None::<&str>,
+            )?));
+        }
+    }
+
+    items.push(Box::new(PredefinedMenuItem::separator(app)?));
+    items.push(Box::new(CheckMenuItem::with_id(
+        app,
+        tray::ITEM_AWAKE,
+        "Keep Screen Awake",
+        true,
+        awake,
+        None::<&str>,
+    )?));
+    items.push(Box::new(CheckMenuItem::with_id(
+        app,
+        tray::ITEM_DESKTOP,
+        "Show on desktop",
+        true,
+        desktop,
+        None::<&str>,
+    )?));
+
+    items.push(Box::new(PredefinedMenuItem::separator(app)?));
+    for percent in [75u32, 100, 125, 150] {
+        items.push(Box::new(CheckMenuItem::with_id(
+            app,
+            format!("{}{}", tray::ITEM_SIZE_PREFIX, percent),
+            format!("Text Size {percent}%"),
+            true,
+            (scale * 100.0).round() as u32 == percent,
+            None::<&str>,
+        )?));
+    }
+
+    items.push(Box::new(PredefinedMenuItem::separator(app)?));
+    let monitors = app.available_monitors().unwrap_or_default();
+    for (index, display) in monitors.iter().enumerate() {
+        let name = display
+            .name()
+            .cloned()
+            .unwrap_or_else(|| format!("Display {}", index + 1));
+        items.push(Box::new(CheckMenuItem::with_id(
+            app,
+            format!("{}{}", tray::ITEM_DISPLAY_PREFIX, index),
+            name,
+            true,
+            index == monitor,
+            None::<&str>,
+        )?));
+    }
+
+    items.push(Box::new(PredefinedMenuItem::separator(app)?));
+    items.push(Box::new(CheckMenuItem::with_id(
+        app,
+        tray::ITEM_LATE_NIGHT,
+        "Late Night",
+        true,
+        late_on,
+        None::<&str>,
+    )?));
+    items.push(Box::new(MenuItem::with_id(
+        app,
+        tray::ITEM_LICENSE,
+        "License…",
+        true,
+        None::<&str>,
+    )?));
+    items.push(Box::new(PredefinedMenuItem::separator(app)?));
+    items.push(Box::new(MenuItem::with_id(
+        app,
+        tray::ITEM_QUIT,
+        "Quit Lyrica",
+        true,
+        None::<&str>,
+    )?));
+
+    let refs: Vec<&dyn tauri::menu::IsMenuItem<tauri::Wry>> =
+        items.iter().map(|item| item.as_ref()).collect();
+    Menu::with_items(app, &refs)
+}
+
+fn sync_tray(app: &AppHandle) {
+    match tray_menu(app) {
+        Ok(menu) => tray::sync_menu(app, menu),
+        Err(error) => eprintln!("tray menu: {error}"),
     }
 }
 
@@ -861,15 +976,17 @@ fn get_state(state: State<Shared>) -> Snapshot {
 
 #[tauri::command]
 fn get_styles() -> Vec<&'static str> {
-    vec![
-        "ship",
-        "fisheye",
-        "visual",
-        "fisheye-visual",
-        "codestyle",
-        "codestyle-visual",
-        "messages",
-    ]
+    STYLE_CATALOG.iter().map(|(id, _)| *id).collect()
+}
+
+#[tauri::command]
+fn open_window(app: AppHandle) {
+    show_main_window(&app);
+}
+
+#[tauri::command]
+fn pin_style(app: AppHandle, style: String, pinned: bool) {
+    set_pinned(&app, style, pinned);
 }
 
 #[tauri::command]
@@ -919,6 +1036,23 @@ fn update_settings(app: AppHandle, patch: Settings) {
     apply_wallpaper_layer(&app, wallpaper);
     sync_tray(&app);
     set_stream_safe(&app, want_stream_safe);
+
+    let (show_desktop, show_in_taskbar) = {
+        let state = app.state::<Shared>();
+        let runtime = state.runtime.lock().expect("runtime lock");
+        (
+            runtime.settings.show_on_desktop,
+            runtime.settings.show_in_taskbar,
+        )
+    };
+    if show_desktop {
+        show_lyrics_window(&app);
+    } else if let Some(window) = app.get_webview_window("lyrics") {
+        let _ = window.hide();
+    }
+    if let Some(window) = app.get_webview_window("window") {
+        let _ = window.set_skip_taskbar(!show_in_taskbar);
+    }
     emit_snapshot(&app);
 }
 
@@ -1004,6 +1138,114 @@ fn toggle_play_pause() -> Result<(), String> {
 #[tauri::command]
 fn set_ambient_mode(app: AppHandle, enabled: bool) {
     set_ambient(&app, enabled);
+}
+
+fn save_settings(app: &AppHandle, mutate: impl FnOnce(&mut Settings)) {
+    let state = app.state::<Shared>();
+    let mut runtime = state.runtime.lock().expect("runtime lock");
+    mutate(&mut runtime.settings);
+    runtime.settings.save(&config_path(app));
+}
+
+fn set_text_scale(app: AppHandle, scale: f32) {
+    let clamped = scale.clamp(0.5, 2.0);
+    save_settings(&app, |settings| settings.font_scale = clamped);
+    emit_snapshot(&app);
+    sync_tray(&app);
+}
+
+fn set_keep_awake(app: AppHandle, on: bool) {
+    save_settings(&app, |settings| settings.keep_awake = on);
+    emit_snapshot(&app);
+    sync_tray(&app);
+}
+
+fn set_show_on_desktop(app: AppHandle, on: bool) {
+    save_settings(&app, |settings| settings.show_on_desktop = on);
+    if on {
+        show_lyrics_window(&app);
+    } else if let Some(window) = app.get_webview_window("lyrics") {
+        let _ = window.hide();
+    }
+    emit_snapshot(&app);
+    sync_tray(&app);
+}
+
+fn set_display(app: AppHandle, index: usize) {
+    save_settings(&app, |settings| {
+        settings.ambient_monitor = index;
+        settings.late_night_monitor = index;
+    });
+    place_ambient(&app, index);
+    let late_on = {
+        let state = app.state::<Shared>();
+        let runtime = state.runtime.lock().expect("runtime lock");
+        runtime.late_night
+    };
+    if late_on {
+        sync_late_night_windows(&app);
+    }
+    emit_snapshot(&app);
+    sync_tray(&app);
+}
+
+fn set_pinned(app: &AppHandle, style: String, pinned: bool) {
+    save_settings(app, |settings| {
+        settings.pinned_styles.retain(|id| *id != style);
+        if pinned {
+            settings.pinned_styles.push(style.clone());
+        }
+        while settings.pinned_styles.len() > 5 {
+            settings.pinned_styles.remove(0);
+        }
+    });
+    emit_snapshot(app);
+    sync_tray(app);
+}
+
+fn open_license_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("license") {
+        let _ = window.show();
+        let _ = window.set_focus();
+        return;
+    }
+
+    let _ = WebviewWindowBuilder::new(app, "license", tauri::WebviewUrl::App("index.html".into()))
+        .title("Lyrica License")
+        .inner_size(560.0, 480.0)
+        .min_inner_size(460.0, 380.0)
+        .center()
+        .resizable(true)
+        .build();
+}
+
+#[tauri::command]
+fn license_status(app: AppHandle) -> license::LicenseStatus {
+    let state = app.state::<Shared>();
+    let runtime = state.runtime.lock().expect("runtime lock");
+    license::status(&runtime.settings)
+}
+
+#[tauri::command]
+fn activate_license(app: AppHandle, key: String) -> Result<license::LicenseStatus, String> {
+    license::verify(&key).map_err(|error| error.message())?;
+    credentials::write(credentials::LICENSE_KEY, key.trim())?;
+    let status = license_status(app.clone());
+    emit_snapshot(&app);
+    Ok(status)
+}
+
+#[tauri::command]
+fn deactivate_license(app: AppHandle) -> Result<license::LicenseStatus, String> {
+    let _ = credentials::delete(credentials::LICENSE_KEY);
+    let status = license_status(app.clone());
+    emit_snapshot(&app);
+    Ok(status)
+}
+
+#[tauri::command]
+fn open_license(app: AppHandle) {
+    open_license_window(&app);
 }
 
 #[tauri::command]
@@ -1213,7 +1455,8 @@ pub fn run() {
                 cider,
             });
 
-            tray::build(&handle, false, wallpaper_on, autostart_on, capture_on, false)?;
+            let initial_menu = tray_menu(&handle)?;
+            tray::build(&handle, initial_menu)?;
 
             // Remember the window's size and place on this monitor.
             if let Some(window) = app.get_webview_window("lyrics") {
@@ -1253,11 +1496,35 @@ pub fn run() {
             }
             let _ = ambient_on;
 
+            // The first launch stamps the trial and opens the window, which is
+            // also the onboarding.
+            let needs_trial_stamp = {
+                let state = handle.state::<Shared>();
+                let runtime = state.runtime.lock().expect("runtime lock");
+                runtime.settings.trial_started_ms == 0
+            };
+            if needs_trial_stamp {
+                {
+                    let state = handle.state::<Shared>();
+                    let mut runtime = state.runtime.lock().expect("runtime lock");
+                    runtime.settings.trial_started_ms = license::now_ms();
+                    runtime.settings.save(&config_path(&handle));
+                }
+                show_main_window(&handle);
+            }
+
             start_poller(handle.clone());
             start_ambient_loop(handle);
             Ok(())
         })
         .on_window_event(|window, event| {
+            if window.label() == "window" {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+                return;
+            }
             if window.label() != "lyrics" {
                 return;
             }
@@ -1311,6 +1578,12 @@ pub fn run() {
             test_cider,
             set_cider_token,
             open_preferences,
+            open_window,
+            pin_style,
+            license_status,
+            activate_license,
+            deactivate_license,
+            open_license,
             quit_app
         ])
         .run(tauri::generate_context!())
@@ -1382,6 +1655,62 @@ fn start_poller(app: AppHandle) {
     });
 }
 
+// ------------------------------------------------------------------ windows
+
+pub fn show_main_window(app: &AppHandle) {
+    let Some(window) = ensure_main_window(app) else {
+        return;
+    };
+    let show_in_taskbar = {
+        let state = app.state::<Shared>();
+        let runtime = state.runtime.lock().expect("runtime lock");
+        runtime.settings.show_in_taskbar
+    };
+    let _ = window.set_skip_taskbar(!show_in_taskbar);
+    let _ = window.show();
+    let _ = window.set_focus();
+}
+
+fn ensure_main_window(app: &AppHandle) -> Option<WebviewWindow> {
+    if let Some(window) = app.get_webview_window("window") {
+        return Some(window);
+    }
+
+    WebviewWindowBuilder::new(app, "window", tauri::WebviewUrl::App("index.html".into()))
+        .title("Lyrica")
+        .inner_size(1060.0, 760.0)
+        .min_inner_size(860.0, 600.0)
+        .center()
+        .build()
+        .ok()
+}
+
+/// Style ids and the names the tray shows. The gallery lives in the frontend;
+/// this list only has to agree with it.
+const STYLE_CATALOG: &[(&str, &str)] = &[
+    ("ship", "Ship"),
+    ("fisheye", "Fisheye"),
+    ("visual", "Visual"),
+    ("fisheye-visual", "Fisheye Visual"),
+    ("codestyle", "Codestyle"),
+    ("codestyle-visual", "Codestyle Visual"),
+    ("branches", "Branches"),
+    ("web", "Web"),
+    ("constellation", "Constellation"),
+    ("messages", "Native Design"),
+    ("money", "Native Design Money"),
+    ("map", "Native Design Map"),
+    ("notifications", "Native Design Notifications"),
+];
+
+fn style_label(id: &str) -> String {
+    STYLE_CATALOG
+        .iter()
+        .find(|(style_id, _)| *style_id == id)
+        .map(|(_, name)| (*name).to_string())
+        .unwrap_or_else(|| id.to_string())
+}
+
 fn start_ambient_loop(app: AppHandle) {
     std::thread::spawn(move || {
         let mut tick: u64 = 0;
@@ -1401,6 +1730,7 @@ fn start_ambient_loop(app: AppHandle) {
                 late_hide_fullscreen,
                 late_resume,
                 late_keep_awake,
+                keep_awake,
             ) = {
                 let runtime = state.runtime.lock().expect("runtime lock");
                 let settings = &runtime.settings;
@@ -1412,6 +1742,7 @@ fn start_ambient_loop(app: AppHandle) {
                     settings.late_night_hide_fullscreen,
                     settings.late_night_resume_after_unlock,
                     settings.late_night_keep_awake,
+                    settings.keep_awake,
                 )
             };
 
@@ -1429,7 +1760,7 @@ fn start_ambient_loop(app: AppHandle) {
                 .unwrap_or(false);
 
             #[cfg(windows)]
-            overlay::keep_display_awake(late_on && late_keep_awake);
+            overlay::keep_display_awake((late_on && late_keep_awake) || (keep_awake && playing));
 
             if late_on {
                 sync_late_night_windows(&app);

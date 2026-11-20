@@ -53,6 +53,55 @@ outside). **Wallpaper layer** re-parents the overlay to the `WorkerW` behind the
 **Style gallery** — Preferences → Styles. Three columns of cards, each with a gradient thumbnail,
 its name, a one-line description and a live preview of that style on hover.
 
+## The window
+
+The tray is still the home of the app, but **Lyrica** (tray → *Open Lyrica*, or a left click on the
+tray icon) is a normal resizable window for previewing, picking and configuring styles:
+
+- a built-in **demo track** — invented lyrics with real word-level timings, looping for about 25
+  seconds — so a style can be judged without any music playing, plus a **Preview: Demo / Now
+  playing** switch, play/pause, a scrubber, arrow buttons and the left/right keys to step through
+  all thirteen styles;
+- **Select** applies the previewed style to every display, **Pin** keeps it in the tray quick list
+  (five at most);
+- style tiles grouped by Kinetic type, Motion scenes and Native Design, with a check on the active
+  style and a pin on the pinned ones;
+- a settings drawer with **Size** (50–200%), **Font** family and weight, **Ambient screen**
+  switches (lyrics on the desktop vs ambient only, keep the screen awake) and **Aesthetics**
+  (Auto Sync, the three colour wells, Reset colours, and a warning when a choice falls under the
+  4.5:1 AA contrast ratio).
+
+The preview renders through the same `StyleCanvas` the real displays use, so what you see is what
+the screen shows. The taskbar button only exists while this window is open. The first launch opens
+it as the onboarding step.
+
+The tray itself is short by design: Open, pinned styles, Keep Screen Awake, Show on desktop, Text
+Size, the monitor list, Late Night, License… and Quit.
+
+## Licensing
+
+Keys are signed offline. A key is `LYRICA1.<payload>.<signature>`: URL-safe base64 of a small JSON
+document and an Ed25519 signature over it. Only the public half is compiled into the app, so
+activation needs no network call and no secret ships in the binary. A fresh install starts a
+14-day trial; an expired key or trial leaves the app usable for reading lyrics but reports its
+state in **License…**.
+
+Note: the Lyrica install is not currently gated on the license state — the state is reported, not
+enforced. Keys live in Windows Credential Manager (`lyrica/license-key`), never in `settings.json`.
+
+Issuing a key needs the signing key, which is **not** in this repository
+(`src-tauri/license-signing-key.txt`, git-ignored):
+
+```bash
+cd src-tauri
+cargo run --example keygen -- new                     # once; prints the public key
+cargo run --example keygen -- sign "Name" --days 365  # prints a key for that name
+```
+
+If you regenerate the signing key, put the new public key into `PUBLIC_KEY_HEX` in
+`src-tauri/src/license.rs`. Keep the signing key offline and backed up: keys signed by a lost key
+cannot be verified by any build.
+
 ## Styles
 
 Each style is a module implementing `LyricStyle`:
@@ -63,22 +112,39 @@ render(ctx: CanvasRenderingContext2D, state: StyleState): void
 
 where `state` carries the lines, `activeIndex`, per-word `wordProgress`, the track and the palette.
 
+The timing never changes between styles — only the way the words appear does. Every style reads
+the same `LyricState`, so word-level timing looks the same whether it comes from enhanced LRC or
+from the syllable estimator.
+
 **Kinetic type — the words themselves move**
 
 | Style | What it does |
 | --- | --- |
 | Ship | Words land one by one on a wall that drifts in 3D |
 | Fisheye | A tight stack of three words, bulging through a lens |
-| Visual | A centered stack with an icon for every word that has one |
+| Visual | A centered stack, with an icon for every word that has one |
 | Fisheye Visual | Fisheye, with icons beside the words that have one |
 
 **Motion scenes — the words draw a picture as they go**
 
 | Style | What it does |
 | --- | --- |
-| Codestyle | The lyric typed out as code, with a blinking red cursor |
-| Codestyle Visual | Codestyle, with an icon for every word that has one |
-| Messages | The song plays out as an iMessage thread, one bubble per line |
+| Codestyle | The lyric typed out as code, under a blinking red cursor |
+| Codestyle Visual | Codestyle, with icons beside the words that have one |
+| Branches | A line draws itself, and each word lights a node on it |
+| Web | Each line spun into a spider's web, a strand for every word |
+| Constellation | Each line traced as a constellation, star by star |
+
+**Native Design — the lyric as an interface you know**
+
+These four keep their own colours; the colour settings leave them alone.
+
+| Style | What it does |
+| --- | --- |
+| Native Design | The song as a message thread, a bubble for every line |
+| Native Design Money | The song as a run of payments, one for every line |
+| Native Design Map | A walk across a city, with a pin for every line |
+| Native Design Notifications | Lines arrive as lock-screen notifications, stacks and widgets |
 
 ## Build
 

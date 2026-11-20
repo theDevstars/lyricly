@@ -8,7 +8,7 @@ import { clamp01, wordGap, type LyricStyle } from '../types';
 export const visual: LyricStyle = {
   id: 'visual',
   name: 'Visual',
-  description: 'A centered stack with an icon for every word that has one.',
+  description: 'A centered stack, with an icon for every word that has one.',
   group: 'kinetic',
   usesIcons: true,
   gradient: ['#10231f', '#2f7d69'],

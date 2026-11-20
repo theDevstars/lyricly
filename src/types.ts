@@ -42,6 +42,16 @@ export interface WindowState {
   monitor: string;
 }
 
+export interface LicenseStatus {
+  enabled: boolean;
+  state: 'active' | 'trial' | 'expired' | 'invalid' | 'disabled' | string;
+  name: string | null;
+  plan: string | null;
+  expiresAtMs: number | null;
+  trialDaysLeft: number | null;
+  message: string;
+}
+
 export interface CiderStatus {
   reachable: boolean;
   api: 'v2' | 'legacyV1' | 'none' | string;
@@ -73,6 +83,19 @@ export interface Settings {
   lateNightHideFullscreen: boolean;
   lateNightKeepAwake: boolean;
   lateNightResumeAfterUnlock: boolean;
+  pinnedStyles: string[];
+  showInTaskbar: boolean;
+  keepAwake: boolean;
+  showOnDesktop: boolean;
+  colorAutoSync: boolean;
+  colorText: string;
+  colorHighlight: string;
+  colorSecondary: string;
+  fontFamily: string;
+  fontScale: number;
+  fontWeight: number;
+  licensingEnabled: boolean;
+  trialStartedMs: number;
   wallpaperLayer: boolean;
   hideOverFullscreen: boolean;
   autostart: boolean;

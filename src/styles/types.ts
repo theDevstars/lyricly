@@ -34,7 +34,7 @@ export interface StyleState {
   height: number;
 }
 
-export type StyleGroup = 'kinetic' | 'scenes';
+export type StyleGroup = 'kinetic' | 'scenes' | 'native';
 
 export interface LyricStyle {
   id: string;

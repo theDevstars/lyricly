@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { CiderStatus, Settings, Snapshot } from '../types';
+import type { CiderStatus, LicenseStatus, Settings, Snapshot } from '../types';
 
 export const getState = (): Promise<Snapshot> => invoke<Snapshot>('get_state');
 
@@ -12,6 +12,20 @@ export const updateSettings = (patch: Settings): Promise<void> =>
 export const nudge = (deltaMs: number): Promise<void> => invoke('nudge', { deltaMs });
 
 export const togglePlayPause = (): Promise<void> => invoke('toggle_play_pause');
+
+export const openWindow = (): Promise<void> => invoke('open_window');
+
+export const pinStyle = (style: string, pinned: boolean): Promise<void> =>
+  invoke('pin_style', { style, pinned });
+
+export const licenseStatus = (): Promise<LicenseStatus> => invoke('license_status');
+
+export const activateLicense = (key: string): Promise<LicenseStatus> =>
+  invoke('activate_license', { key });
+
+export const deactivateLicense = (): Promise<LicenseStatus> => invoke('deactivate_license');
+
+export const openLicense = (): Promise<void> => invoke('open_license');
 
 export const setLateNight = (enabled: boolean): Promise<void> =>
   invoke('set_late_night', { enabled });
