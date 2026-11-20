@@ -1,4 +1,3 @@
-mod db;
 mod lyrics;
 mod media;
 mod overlay;
@@ -8,12 +7,11 @@ mod tray;
 #[cfg(windows)]
 mod autostart;
 
-use db::Db;
 use lyrics::{Lyrics, TrackQuery};
 use media::{now_ms, Playback};
 use settings::{Settings, WindowState};
 use std::sync::atomic::{AtomicI64, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{
     AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewWindow,
@@ -24,7 +22,6 @@ use tauri_plugin_global_shortcut::GlobalShortcutExt;
 /// Window geometry is written to disk at most this often while dragging.
 static LAST_GEOMETRY_SAVE: AtomicI64 = AtomicI64::new(0);
 
-const CACHE_TTL_MS: i64 = 30 * 24 * 60 * 60 * 1000;
 const POLL_MS: u64 = 250;
 
 pub struct Runtime {
@@ -39,7 +36,8 @@ pub struct Runtime {
 
 pub struct Shared {
     pub runtime: Mutex<Runtime>,
-    pub db: Db,
+    pub cache: Arc<lyrics::cache::Cache>,
+    pub pipeline: Arc<lyrics::Pipeline>,
 }
 
 #[derive(serde::Serialize, Clone)]
@@ -239,42 +237,79 @@ fn apply_wallpaper_layer(app: &AppHandle, enabled: bool) {
 
 // ------------------------------------------------------------------ lyrics
 
+enum LookupOutcome {
+    /// Engine-ready lyrics, plus the source and timing wording for the status row.
+    Found(Lyrics, String, String),
+    Instrumental(String),
+    Missing(String),
+}
+
 fn spawn_lyric_lookup(app: AppHandle, key: String, query: TrackQuery) {
-    std::thread::spawn(move || {
+    let _ = app.emit("lyrics:loading", serde_json::json!({ "trackKey": key }));
+
+    tauri::async_runtime::spawn(async move {
+        let pipeline = app.state::<Shared>().pipeline.clone();
+        let outcome = pipeline.resolve(&query).await;
+
+        let resolved = match outcome.result {
+            Some(result) => {
+                let source = result.source.clone();
+                let timing = result.timing.label().to_string();
+                match result.to_engine() {
+                    Some(engine) => LookupOutcome::Found(engine, source, timing),
+                    None if result.instrumental => LookupOutcome::Instrumental(source),
+                    None => LookupOutcome::Missing(format!(
+                        "{source} returned plain lyrics; timing estimation is not enabled yet"
+                    )),
+                }
+            }
+            None => LookupOutcome::Missing(
+                outcome.reason.unwrap_or_else(|| "no lyrics found".into()),
+            ),
+        };
+
         {
             let state = app.state::<Shared>();
-            if let Some(cached) = state.db.get(&key, CACHE_TTL_MS) {
-                let mut runtime = state.runtime.lock().expect("runtime lock");
-                if runtime.track_key == key {
-                    runtime.lyrics = Some(cached);
-                    runtime.loading = false;
-                }
-                drop(runtime);
-                emit_snapshot(&app);
+            let mut runtime = state.runtime.lock().expect("runtime lock");
+            if runtime.track_key != key {
+                // The track changed while we were waiting; drop this answer.
                 return;
             }
-        }
-
-        let result = lyrics::fetch_from_lrclib(&query);
-
-        let state = app.state::<Shared>();
-        let mut runtime = state.runtime.lock().expect("runtime lock");
-        if runtime.track_key != key {
-            return;
-        }
-        runtime.loading = false;
-        match result {
-            Ok(found) => {
-                state.db.put(&key, &found);
-                runtime.lyrics = Some(found);
-                runtime.error = None;
-            }
-            Err(error) => {
-                runtime.lyrics = None;
-                runtime.error = Some(error);
+            runtime.loading = false;
+            match &resolved {
+                LookupOutcome::Found(engine, _, _) => {
+                    runtime.lyrics = Some(engine.clone());
+                    runtime.error = None;
+                }
+                LookupOutcome::Instrumental(source) => {
+                    runtime.lyrics = None;
+                    runtime.error = Some(format!("instrumental track (from {source})"));
+                }
+                LookupOutcome::Missing(reason) => {
+                    runtime.lyrics = None;
+                    runtime.error = Some(reason.clone());
+                }
             }
         }
-        drop(runtime);
+
+        match resolved {
+            LookupOutcome::Found(_, source, timing) => {
+                let _ = app.emit(
+                    "lyrics:found",
+                    serde_json::json!({ "source": source, "timing": timing }),
+                );
+            }
+            LookupOutcome::Instrumental(source) => {
+                let _ = app.emit(
+                    "lyrics:not_found",
+                    serde_json::json!({ "reason": format!("instrumental track (from {source})") }),
+                );
+            }
+            LookupOutcome::Missing(reason) => {
+                let _ = app.emit("lyrics:not_found", serde_json::json!({ "reason": reason }));
+            }
+        }
+
         emit_snapshot(&app);
     });
 }
@@ -447,7 +482,7 @@ fn set_wallpaper_layer(app: AppHandle, enabled: bool) {
 #[tauri::command]
 fn reload_lyrics(app: AppHandle) {
     let state = app.state::<Shared>();
-    state.db.clear();
+    state.cache.clear();
     {
         let mut runtime = state.runtime.lock().expect("runtime lock");
         runtime.track_key.clear();
@@ -492,7 +527,18 @@ pub fn run() {
             let handle = app.handle().clone();
 
             let settings = Settings::load(&config_path(&handle));
-            let db = Db::open(&db_path(&handle)).expect("lyrics cache");
+            let cache = Arc::new(
+                lyrics::cache::Cache::open(&db_path(&handle)).expect("lyrics cache"),
+            );
+            let providers: Vec<Arc<dyn lyrics::LyricsProvider>> = vec![
+                Arc::new(lyrics::local::LocalProvider::new(cache.clone())),
+                Arc::new(lyrics::lrclib::LrclibProvider::new()),
+            ];
+            let pipeline = Arc::new(lyrics::Pipeline::new(
+                providers,
+                cache.clone(),
+                lyrics::PipelineConfig::default(),
+            ));
             let initial_playback = media::snapshot();
             let saved_window = settings.window.clone();
 
@@ -511,7 +557,8 @@ pub fn run() {
                     ambient_on: false,
                     error: None,
                 }),
-                db,
+                cache,
+                pipeline,
             });
 
             tray::build(&handle, false, wallpaper_on, autostart_on)?;

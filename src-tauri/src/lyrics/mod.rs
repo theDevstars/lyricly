@@ -2,12 +2,13 @@
 //! based split for plain LRC, the provider pipeline, and LRCLIB lookups.
 
 pub mod cache;
+pub mod local;
+pub mod lrclib;
 pub mod matcher;
 
 use async_trait::async_trait;
 use futures::stream::{FuturesUnordered, StreamExt};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -35,6 +36,15 @@ pub struct LyricLine {
 pub struct Lyrics {
     pub source: String,
     pub lines: Vec<LyricLine>,
+}
+
+/// The track being looked up, independent of any provider.
+#[derive(Debug, Clone)]
+pub struct TrackQuery {
+    pub title: String,
+    pub artist: String,
+    pub album: String,
+    pub duration_ms: i64,
 }
 
 fn parse_timestamp(minutes: &str, seconds: &str, fraction: &str) -> Option<i64> {
@@ -294,131 +304,6 @@ pub fn parse_lrc(raw: &str, source: &str) -> Option<Lyrics> {
     })
 }
 
-#[derive(Debug, Deserialize)]
-struct LrclibRecord {
-    #[serde(rename = "trackName")]
-    track_name: Option<String>,
-    #[serde(rename = "artistName")]
-    artist_name: Option<String>,
-    duration: Option<f64>,
-    instrumental: Option<bool>,
-    #[serde(rename = "syncedLyrics")]
-    synced_lyrics: Option<String>,
-}
-
-fn normalize(value: &str) -> String {
-    value
-        .to_lowercase()
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { ' ' })
-        .collect::<String>()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-fn score(record: &LrclibRecord, title: &str, artist: &str, duration_s: Option<i64>) -> f64 {
-    if record.synced_lyrics.is_none() {
-        return -1.0;
-    }
-    let mut score = 100.0;
-    if let Some(name) = &record.track_name {
-        if normalize(name) == normalize(title) {
-            score += 30.0;
-        } else if normalize(name).contains(&normalize(title)) {
-            score += 10.0;
-        }
-    }
-    if let Some(name) = &record.artist_name {
-        if normalize(name) == normalize(artist) {
-            score += 20.0;
-        } else if normalize(name).contains(&normalize(artist)) {
-            score += 8.0;
-        }
-    }
-    if let (Some(record_duration), Some(track_duration)) = (record.duration, duration_s) {
-        score -= ((record_duration - track_duration as f64).abs() / 2.0).min(60.0);
-    }
-    if record.instrumental.unwrap_or(false) {
-        score -= 50.0;
-    }
-    score
-}
-
-#[derive(Debug, Clone)]
-pub struct TrackQuery {
-    pub title: String,
-    pub artist: String,
-    pub album: String,
-    pub duration_ms: i64,
-}
-
-/// Looks a track up on LRCLIB. Blocking on purpose: it runs on a worker thread.
-pub fn fetch_from_lrclib(query: &TrackQuery) -> Result<Lyrics, String> {
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(8))
-        .user_agent("Lyrica/0.1 (Windows tray lyric player)")
-        .build()
-        .map_err(|error| error.to_string())?;
-
-    let duration_s = (query.duration_ms > 0).then(|| (query.duration_ms as f64 / 1000.0).round() as i64);
-
-    let mut params: HashMap<&str, String> = HashMap::new();
-    params.insert("track_name", query.title.clone());
-    params.insert("artist_name", query.artist.clone());
-    if !query.album.is_empty() {
-        params.insert("album_name", query.album.clone());
-    }
-    if let Some(duration) = duration_s {
-        params.insert("duration", duration.to_string());
-    }
-
-    let response = client
-        .get("https://lrclib.net/api/get")
-        .query(&params)
-        .send()
-        .map_err(|error| error.to_string())?;
-
-    if response.status().is_success() {
-        if let Ok(record) = response.json::<LrclibRecord>() {
-            if let Some(synced) = record.synced_lyrics {
-                if let Some(lyrics) = parse_lrc(&synced, "LRCLIB") {
-                    return Ok(lyrics);
-                }
-            }
-        }
-    }
-
-    let mut search: HashMap<&str, String> = HashMap::new();
-    search.insert("track_name", query.title.clone());
-    search.insert("artist_name", query.artist.clone());
-
-    let results = client
-        .get("https://lrclib.net/api/search")
-        .query(&search)
-        .send()
-        .map_err(|error| error.to_string())?
-        .json::<Vec<LrclibRecord>>()
-        .map_err(|error| error.to_string())?;
-
-    let best = results
-        .iter()
-        .filter_map(|record| {
-            let value = score(record, &query.title, &query.artist, duration_s);
-            (value > 0.0).then_some((value, record))
-        })
-        .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
-        .map(|(_, record)| record)
-        .ok_or_else(|| "no synced lyrics found".to_string())?;
-
-    let synced = best
-        .synced_lyrics
-        .as_ref()
-        .ok_or_else(|| "no synced lyrics found".to_string())?;
-
-    parse_lrc(synced, "LRCLIB").ok_or_else(|| "lyrics could not be parsed".to_string())
-}
-
 // ---------------------------------------------------------------- providers
 
 /// How precise a result's timings are.
@@ -558,6 +443,33 @@ impl LyricsResult {
             source: self.source.clone(),
             lines,
         })
+    }
+}
+
+/// Plain lyrics (no timestamps) as a provider result. `auto_timing` gives
+/// these their timing later.
+pub fn plain_result(raw: &str, source: &str, confidence: f32) -> LyricsResult {
+    let lines: Vec<ProviderLine> = raw
+        .replace("\r\n", "\n")
+        .lines()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .map(|line| ProviderLine {
+            start_ms: None,
+            end_ms: None,
+            text: line.to_string(),
+            words: None,
+        })
+        .collect();
+
+    LyricsResult {
+        lines,
+        timing: Timing::Unsynced,
+        source: source.to_string(),
+        source_url: None,
+        confidence,
+        attribution: Some(format!("Lyrics from {source}")),
+        instrumental: false,
     }
 }
 
