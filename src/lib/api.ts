@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { Settings, Snapshot } from '../types';
+import type { CiderStatus, Settings, Snapshot } from '../types';
 
 export const getState = (): Promise<Snapshot> => invoke<Snapshot>('get_state');
 
@@ -20,6 +20,11 @@ export const setWallpaperLayer = (enabled: boolean): Promise<void> =>
   invoke('set_wallpaper_layer', { enabled });
 
 export const reloadLyrics = (): Promise<void> => invoke('reload_lyrics');
+
+export const testCider = (): Promise<CiderStatus> => invoke<CiderStatus>('test_cider');
+
+export const setCiderToken = (token: string): Promise<void> =>
+  invoke('set_cider_token', { token });
 
 export const openPreferences = (): Promise<void> => invoke('open_preferences');
 

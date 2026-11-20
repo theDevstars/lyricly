@@ -38,6 +38,14 @@ export interface WindowState {
   monitor: string;
 }
 
+export interface CiderStatus {
+  reachable: boolean;
+  api: 'v2' | 'legacyV1' | 'none' | string;
+  version: string | null;
+  port: number | null;
+  message: string;
+}
+
 export interface Settings {
   style: string;
   nudgeMs: number;
@@ -49,6 +57,11 @@ export interface Settings {
   wallpaperLayer: boolean;
   hideOverFullscreen: boolean;
   autostart: boolean;
+  lyricsAllowGeniusPageParsing: boolean;
+  ciderEnabled: boolean;
+  ciderHost: string;
+  ciderPort: number;
+  ciderPreferApi: boolean;
   window: WindowState;
 }
 

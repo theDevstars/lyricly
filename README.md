@@ -88,6 +88,31 @@ src/windows/               lyrics, ambient and preferences windows
 src/components/            canvas stage and gallery preview
 ```
 
+## Players
+
+**Spotify**, **Apple Music** and other Windows media apps come through the system media
+session (SMTC); nothing to configure.
+
+**Cider** (cider.sh) is detected through SMTC too — it just looks like another Apple Music
+player — and additionally can be read from its local API for exact position, duration and
+artwork. Enable it under Preferences → Players.
+
+- Host and port default to `localhost:10767`.
+- The API token comes from Cider under **Settings → Connectivity → Manage External
+  Application Access to Cider**, and is stored in the Windows Credential Manager (target
+  `lyrica/cider-token`). It is sent as the `apptoken` header, and also as `apitoken` so the
+  legacy generation keeps working if it accepts it. Tokens are never written to
+  `settings.json` and never logged.
+- Only Cider's current **v2** REST API (`/api/v2/client/info`, `/api/v2/playback`,
+  `/api/v2/lyrics/current`) is implemented. A v1 server is detected and reported as such
+  rather than guessed at; it stays usable through SMTC.
+- Playback state is polled rather than pushed: Cider's Socket.IO `API:Playback` channel
+  (`playbackStatus.nowPlayingItemDidChange`, `playbackStatus.playbackTimeDidChange`, …) is
+  documented but not yet subscribed to.
+- Lyrics come from `/api/v2/lyrics/current?words=true` when Apple Music has them, which can
+  be word-synced, line-synced or plain. The provider is listed first among lyric sources but
+  refuses results whose track does not match what is playing.
+
 ## Notes
 
 - The updater is registered but has no endpoints or signing key configured yet; publishing updates

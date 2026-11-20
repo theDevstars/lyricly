@@ -2,6 +2,7 @@
 //! based split for plain LRC, the provider pipeline, and LRCLIB lookups.
 
 pub mod cache;
+pub mod cider;
 pub mod genius;
 pub mod local;
 pub mod lrclib;

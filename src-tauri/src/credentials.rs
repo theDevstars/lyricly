@@ -7,6 +7,8 @@
 pub const GENIUS_TOKEN: &str = "lyrica/genius-token";
 /// Credential target used for the Musixmatch API key.
 pub const MUSIXMATCH_KEY: &str = "lyrica/musixmatch-key";
+/// Credential target used for the Cider API token.
+pub const CIDER_TOKEN: &str = "lyrica/cider-token";
 
 pub fn read(name: &str) -> Option<String> {
     imp::read(name)

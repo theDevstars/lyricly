@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Settings, Snapshot } from '../types';
+import type { CiderStatus, Settings, Snapshot } from '../types';
 import { GROUPS, getStyle, STYLES, stylesIn } from '../styles/registry';
 import { StylePreview } from '../components/StylePreview';
 import {
   quitApp,
   reloadLyrics,
   setAmbientMode,
+  setCiderToken,
   setStyle,
+  testCider,
   updateSettings,
 } from '../lib/api';
 
@@ -14,12 +16,15 @@ interface PreferencesProps {
   snapshot: Snapshot;
 }
 
-type Tab = 'styles' | 'overlay' | 'ambient';
+type Tab = 'styles' | 'players' | 'overlay' | 'ambient';
 
 export function Preferences({ snapshot }: PreferencesProps) {
   const [tab, setTab] = useState<Tab>('styles');
   const [draft, setDraft] = useState<Settings>(snapshot.settings);
   const [hovered, setHovered] = useState<string | null>(null);
+  const [ciderToken, setCiderTokenDraft] = useState('');
+  const [ciderStatus, setCiderStatus] = useState<CiderStatus | null>(null);
+  const [testingCider, setTestingCider] = useState(false);
 
   useEffect(() => {
     setDraft(snapshot.settings);
@@ -32,6 +37,29 @@ export function Preferences({ snapshot }: PreferencesProps) {
   };
 
   const monitors = useMemo(() => [0, 1, 2, 3], []);
+
+  const saveCiderToken = async () => {
+    await setCiderToken(ciderToken);
+    setCiderTokenDraft('');
+    setCiderStatus(null);
+  };
+
+  const runCiderTest = async () => {
+    setTestingCider(true);
+    try {
+      setCiderStatus(await testCider());
+    } catch (error) {
+      setCiderStatus({
+        reachable: false,
+        api: 'none',
+        version: null,
+        port: null,
+        message: String(error),
+      });
+    } finally {
+      setTestingCider(false);
+    }
+  };
 
   return (
     <div className="prefs">
@@ -61,6 +89,9 @@ export function Preferences({ snapshot }: PreferencesProps) {
       <nav className="tabs">
         <button type="button" className={tab === 'styles' ? 'on' : ''} onClick={() => setTab('styles')}>
           Styles
+        </button>
+        <button type="button" className={tab === 'players' ? 'on' : ''} onClick={() => setTab('players')}>
+          Players
         </button>
         <button type="button" className={tab === 'overlay' ? 'on' : ''} onClick={() => setTab('overlay')}>
           Overlay
@@ -112,6 +143,109 @@ export function Preferences({ snapshot }: PreferencesProps) {
               </div>
             </div>
           ))}
+        </section>
+      )}
+
+      {tab === 'players' && (
+        <section className="panel">
+          <h2>Cider</h2>
+          <p className="note">
+            Cider (cider.sh) publishes a media session, so it already plays along as an Apple Music
+            client. With its local API on, Lyrica also gets exact position, duration and Apple
+            Music's own lyrics.
+          </p>
+
+          <div className="toggle-row">
+            <div>
+              <span>Enable Cider</span>
+              <small>Read playback and lyrics from Cider's local API</small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={draft.ciderEnabled}
+                onChange={(event) => commit({ ciderEnabled: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
+
+          <label className="field">
+            <span>Host</span>
+            <input
+              type="text"
+              value={draft.ciderHost}
+              onChange={(event) => commit({ ciderHost: event.target.value })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Port</span>
+            <input
+              type="number"
+              min={1}
+              max={65535}
+              value={draft.ciderPort}
+              onChange={(event) => commit({ ciderPort: Number(event.target.value) })}
+            />
+          </label>
+
+          <label className="field">
+            <span>API token</span>
+            <input
+              type="password"
+              placeholder="stored in the Windows Credential Manager"
+              value={ciderToken}
+              onChange={(event) => setCiderTokenDraft(event.target.value)}
+            />
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => void saveCiderToken()}
+              disabled={!ciderToken.trim()}
+            >
+              Save token
+            </button>
+          </label>
+
+          <p className="note">
+            Find the token in Cider under <strong>Settings → Connectivity → Manage External
+            Application Access to Cider</strong>. It is kept in the Windows Credential Manager, never
+            in the settings file, and is never logged.
+          </p>
+
+          <div className="toggle-row">
+            <div>
+              <span>Prefer Cider API over SMTC</span>
+              <small>Use Cider's exact position even when the media session would do</small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={draft.ciderPreferApi}
+                onChange={(event) => commit({ ciderPreferApi: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
+
+          <div className="panel-actions">
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => void runCiderTest()}
+              disabled={testingCider}
+            >
+              {testingCider ? 'Testing…' : 'Test connection'}
+            </button>
+          </div>
+
+          {ciderStatus && (
+            <p className="note">
+              {ciderStatus.message}
+              {ciderStatus.version ? ` · v${ciderStatus.version}` : ''}
+            </p>
+          )}
         </section>
       )}
 

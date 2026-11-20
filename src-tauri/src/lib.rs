@@ -2,6 +2,7 @@ mod credentials;
 mod lyrics;
 mod media;
 mod overlay;
+mod players;
 mod settings;
 mod tray;
 
@@ -12,7 +13,7 @@ use lyrics::{Lyrics, TrackQuery};
 use media::{now_ms, Playback};
 use settings::{Settings, WindowState};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 use tauri::{
     AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewWindow,
@@ -41,6 +42,8 @@ pub struct Shared {
     pub pipeline: Arc<lyrics::Pipeline>,
     /// Live switch for Genius page parsing, so the preference applies without a restart.
     pub genius_parsing: Arc<AtomicBool>,
+    /// Cider connection settings, shared by the player source and the lyrics provider.
+    pub cider: Arc<RwLock<players::cider::CiderConfig>>,
 }
 
 #[derive(serde::Serialize, Clone)]
@@ -432,6 +435,12 @@ fn update_settings(app: AppHandle, patch: Settings) {
             runtime.settings.lyrics_allow_genius_page_parsing,
             Ordering::Relaxed,
         );
+        if let Ok(mut cider) = state.cider.write() {
+            cider.enabled = runtime.settings.cider_enabled;
+            cider.host = runtime.settings.cider_host.clone();
+            cider.port = runtime.settings.cider_port;
+            cider.prefer_api = runtime.settings.cider_prefer_api;
+        }
     }
     set_autostart(patch_autostart(&app));
     let wallpaper = patch_wallpaper(&app);
@@ -499,6 +508,31 @@ fn reload_lyrics(app: AppHandle) {
 }
 
 #[tauri::command]
+fn test_cider(app: AppHandle) -> players::cider::CiderStatus {
+    let shared = app.state::<Shared>().cider.clone();
+    let config = shared
+        .read()
+        .map(|config| config.clone())
+        .unwrap_or_default();
+    players::cider::test_connection(&config)
+}
+
+#[tauri::command]
+fn set_cider_token(app: AppHandle, token: String) -> Result<(), String> {
+    let trimmed = token.trim().to_string();
+    if trimmed.is_empty() {
+        let _ = credentials::delete(credentials::CIDER_TOKEN);
+    } else {
+        credentials::write(credentials::CIDER_TOKEN, &trimmed)?;
+    }
+
+    let state = app.state::<Shared>();
+    let mut config = state.cider.write().map_err(|_| "cider config".to_string())?;
+    config.token = (!trimmed.is_empty()).then_some(trimmed);
+    Ok(())
+}
+
+#[tauri::command]
 fn open_preferences(app: AppHandle) {
     show_prefs(&app);
 }
@@ -540,7 +574,15 @@ pub fn run() {
             let genius_parsing = Arc::new(AtomicBool::new(
                 settings.lyrics_allow_genius_page_parsing,
             ));
+            let cider = Arc::new(RwLock::new(players::cider::CiderConfig {
+                enabled: settings.cider_enabled,
+                host: settings.cider_host.clone(),
+                port: settings.cider_port,
+                prefer_api: settings.cider_prefer_api,
+                token: credentials::read(credentials::CIDER_TOKEN),
+            }));
             let providers: Vec<Arc<dyn lyrics::LyricsProvider>> = vec![
+                Arc::new(lyrics::cider::CiderLyricsProvider::new(cider.clone())),
                 Arc::new(lyrics::local::LocalProvider::new(cache.clone())),
                 Arc::new(lyrics::lrclib::LrclibProvider::new()),
                 Arc::new(lyrics::genius::GeniusProvider::new(
@@ -574,6 +616,7 @@ pub fn run() {
                 cache,
                 pipeline,
                 genius_parsing,
+                cider,
             });
 
             tray::build(&handle, false, wallpaper_on, autostart_on)?;
@@ -645,6 +688,8 @@ pub fn run() {
             set_ambient_mode,
             set_wallpaper_layer,
             reload_lyrics,
+            test_cider,
+            set_cider_token,
             open_preferences,
             quit_app
         ])
@@ -656,7 +701,30 @@ fn start_poller(app: AppHandle) {
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_millis(POLL_MS));
 
-        let playback = media::snapshot();
+        let playback = {
+            let shared_cider = app.state::<Shared>().cider.clone();
+            let cider = shared_cider
+                .read()
+                .map(|config| config.clone())
+                .unwrap_or_default();
+
+            let smtc = media::snapshot();
+            let smtc_is_cider = smtc.app.eq_ignore_ascii_case("cider");
+
+            // Cider's API gives exact position; SMTC covers no-token setups.
+            if cider.enabled {
+                match players::cider::now_playing(&cider) {
+                    Some(snapshot)
+                        if smtc_is_cider || (cider.prefer_api && snapshot.status == "playing") =>
+                    {
+                        snapshot
+                    }
+                    _ => smtc,
+                }
+            } else {
+                smtc
+            }
+        };
         let mut request: Option<(String, TrackQuery)> = None;
 
         {

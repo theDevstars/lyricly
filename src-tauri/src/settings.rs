@@ -42,6 +42,12 @@ pub struct Settings {
     /// Genius text comes from its song pages, which is terms-sensitive:
     /// off unless the user explicitly agrees.
     pub lyrics_allow_genius_page_parsing: bool,
+    /// Cider (cider.sh) as an additional player source.
+    pub cider_enabled: bool,
+    pub cider_host: String,
+    pub cider_port: u16,
+    /// Use Cider's API for position/duration even when SMTC would do.
+    pub cider_prefer_api: bool,
     pub window: WindowState,
 }
 
@@ -59,6 +65,10 @@ impl Default for Settings {
             hide_over_fullscreen: true,
             autostart: false,
             lyrics_allow_genius_page_parsing: false,
+            cider_enabled: false,
+            cider_host: "localhost".into(),
+            cider_port: 10_767,
+            cider_prefer_api: true,
             window: WindowState::default(),
         }
     }

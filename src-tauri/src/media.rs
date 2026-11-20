@@ -67,6 +67,8 @@ fn friendly_app(id: &str) -> String {
         "Apple Music".into()
     } else if lower.contains("zunemusic") || lower.contains("music.ui") {
         "Media Player".into()
+    } else if lower.contains("cider") {
+        "Cider".into()
     } else {
         id.trim_end_matches(".exe").to_string()
     }
@@ -82,7 +84,7 @@ mod imp {
     };
 
     /// Apps we prefer when several sessions are open at once.
-    const PREFERRED: [&str; 4] = ["Spotify", "AppleMusic", "Music.UI", "ZuneMusic"];
+    const PREFERRED: [&str; 5] = ["Spotify", "AppleMusic", "Cider", "Music.UI", "ZuneMusic"];
 
     fn manager() -> Option<SessionManager> {
         SessionManager::RequestAsync().ok()?.get().ok()
