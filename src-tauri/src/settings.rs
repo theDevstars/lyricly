@@ -73,6 +73,9 @@ pub struct Settings {
     pub ambient_enabled: bool,
     pub ambient_monitor: usize,
     pub ambient_idle_minutes: u32,
+    /// Let the idle timer open Ambient by itself. Off by default: the hotkey and
+    /// the toggle are the only things that show it unless this is turned on.
+    pub ambient_auto_open: bool,
     pub ambient_hotkey: String,
     /// Hotkey that records the start of the next lyric line while tap-syncing.
     pub tap_sync_hotkey: String,
@@ -209,6 +212,7 @@ impl Default for Settings {
             ambient_enabled: false,
             ambient_monitor: 0,
             ambient_idle_minutes: 10,
+            ambient_auto_open: false,
             ambient_hotkey: "Ctrl+Alt+L".into(),
             tap_sync_hotkey: "Ctrl+Alt+T".into(),
             stream_safe: false,
@@ -316,5 +320,35 @@ impl Settings {
         if let Ok(raw) = serde_json::to_string_pretty(self) {
             let _ = std::fs::write(path, raw);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ambient_does_not_open_by_itself_by_default() {
+        let settings = Settings::default();
+        assert!(!settings.ambient_auto_open);
+    }
+
+    #[test]
+    fn older_configs_pick_up_the_new_defaults() {
+        // A settings file written before these fields existed.
+        let raw = serde_json::json!({ "style": "ship", "ambientIdleMinutes": 1 });
+        let settings: Settings = serde_json::from_value(raw).expect("old config still loads");
+        assert!(!settings.ambient_auto_open, "idle timer must stay opt-in");
+    }
+
+    #[test]
+    fn rim_light_settings_round_trip() {
+        let mut settings = Settings::default();
+        settings.ambient_auto_open = true;
+        settings.rim_light_animation = "drift".into();
+        let raw = serde_json::to_string(&settings).expect("serialises");
+        let back: Settings = serde_json::from_str(&raw).expect("parses");
+        assert_eq!(back.rim_light_animation, "drift");
+        assert!(back.ambient_auto_open);
     }
 }

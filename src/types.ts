@@ -75,6 +75,7 @@ export interface Settings {
   moodMode: boolean;
   singAlong: boolean;
   ambientIdleMinutes: number;
+  ambientAutoOpen: boolean;
   ambientHotkey: string;
   tapSyncHotkey: string;
   streamSafe: boolean;

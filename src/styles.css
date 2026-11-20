@@ -1686,6 +1686,7 @@ html[data-windows-light='on'] .qol-empty em {
   animation: rim-breathe 6.5s ease-in-out infinite;
 }
 
+
 .rim-light[data-anim='drift']::before {
   animation: rim-drift 28s linear infinite;
 }

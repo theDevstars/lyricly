@@ -9,6 +9,8 @@ pub const ITEM_OPEN: &str = "open-window";
 pub const ITEM_AWAKE: &str = "toggle-awake";
 pub const ITEM_DESKTOP: &str = "toggle-desktop";
 pub const ITEM_LATE_NIGHT: &str = "toggle-late-night";
+/// "rim:toggle" and "rim:anim:<name>".
+pub const ITEM_RIM_PREFIX: &str = "rim:";
 pub const ITEM_LICENSE: &str = "license";
 pub const ITEM_QUIT: &str = "quit";
 pub const ITEM_SIZE_PREFIX: &str = "size:";

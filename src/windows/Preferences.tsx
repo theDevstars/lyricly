@@ -980,8 +980,8 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
             <span>Monitor</span>
             <select
               value={draft.ambientMonitor}
-              onChange={(event) => commit({ ambientMonitor: Number(event.target.value) })}
-            >
+                              onChange={(event) => commit({ ambientMonitor: Number(event.target.value) })}
+              >
               {monitors.map((index) => (
                 <option key={index} value={index}>
                   Display {index + 1}
@@ -989,6 +989,24 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
               ))}
             </select>
           </label>
+
+          <div className="toggle-row">
+            <div>
+              <span>Open on its own</span>
+              <small>
+                Let the idle timer below show Ambient. Off means only the hotkey or the toggle opens
+                it.
+              </small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={draft.ambientAutoOpen}
+                onChange={(event) => commit({ ambientAutoOpen: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
 
           <label className="field">
             <span>Appear when idle for</span>

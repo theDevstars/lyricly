@@ -22,7 +22,7 @@ use settings::{Settings, WindowState};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
-use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize, State,
     WebviewWindow,
@@ -922,6 +922,20 @@ pub fn handle_tray_event(app: &AppHandle, id: &str) {
         }
         return;
     }
+    if let Some(value) = id.strip_prefix(tray::ITEM_RIM_PREFIX) {
+        match value {
+            "toggle" => {
+                let on = {
+                    let state = app.state::<Shared>();
+                    let runtime = state.runtime.lock().expect("runtime lock");
+                    runtime.settings.rim_light_enabled
+                };
+                set_rim_light(app, Some(!on), None);
+            }
+            animation => set_rim_light(app, None, Some(animation.to_string())),
+        }
+        return;
+    }
     if let Some(value) = id.strip_prefix(tray::ITEM_DISPLAY_PREFIX) {
         if let Ok(index) = value.parse::<usize>() {
             set_display(app.clone(), index);
@@ -959,6 +973,24 @@ pub fn handle_tray_event(app: &AppHandle, id: &str) {
         tray::ITEM_QUIT => app.exit(0),
         _ => {}
     }
+}
+
+/// Applies a Rim Light change from the tray and refreshes the menu so its
+/// check marks match the new state.
+fn set_rim_light(app: &AppHandle, enabled: Option<bool>, animation: Option<String>) {
+    {
+        let state = app.state::<Shared>();
+        let mut runtime = state.runtime.lock().expect("runtime lock");
+        if let Some(enabled) = enabled {
+            runtime.settings.rim_light_enabled = enabled;
+        }
+        if let Some(animation) = animation {
+            runtime.settings.rim_light_animation = animation;
+        }
+        runtime.settings.save(&config_path(app));
+    }
+    sync_tray(app);
+    emit_snapshot(app);
 }
 
 /// The short mid-song menu: what you actually reach for without leaving the
@@ -1055,6 +1087,56 @@ fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             None::<&str>,
         )?));
     }
+
+    // Rim Light lives here as its own menu: one click to show it, one to pick
+    // its motion, without opening the window.
+    let (rim_on, rim_animation) = {
+        let state = app.state::<Shared>();
+        let runtime = state.runtime.lock().expect("runtime lock");
+        (
+            runtime.settings.rim_light_enabled,
+            runtime.settings.rim_light_animation.clone(),
+        )
+    };
+    let rim_toggle = CheckMenuItem::with_id(
+        app,
+        format!("{}toggle", tray::ITEM_RIM_PREFIX),
+        "Show rim light",
+        true,
+        rim_on,
+        None::<&str>,
+    )?;
+    let rim_breathe = CheckMenuItem::with_id(
+        app,
+        format!("{}anim:breathe", tray::ITEM_RIM_PREFIX),
+        "Breathe with the song",
+        true,
+        rim_animation == "breathe",
+        None::<&str>,
+    )?;
+    let rim_drift = CheckMenuItem::with_id(
+        app,
+        format!("{}anim:drift", tray::ITEM_RIM_PREFIX),
+        "Drift slowly",
+        true,
+        rim_animation == "drift",
+        None::<&str>,
+    )?;
+    let rim_still = CheckMenuItem::with_id(
+        app,
+        format!("{}anim:still", tray::ITEM_RIM_PREFIX),
+        "Hold still",
+        true,
+        rim_animation == "still",
+        None::<&str>,
+    )?;
+    let rim_menu = Submenu::with_items(
+        app,
+        "Rim Light",
+        true,
+        &[&rim_toggle, &rim_breathe, &rim_drift, &rim_still],
+    )?;
+    items.push(Box::new(rim_menu));
 
     items.push(Box::new(PredefinedMenuItem::separator(app)?));
     items.push(Box::new(CheckMenuItem::with_id(
@@ -2167,7 +2249,6 @@ pub fn run() {
             let autostart_on = settings.autostart;
             let stream_window_on = settings.stream_window;
             let wallpaper_on = settings.wallpaper_layer;
-            let ambient_on = settings.ambient_enabled;
 
             app.manage(Shared {
                 runtime: Mutex::new(Runtime {
@@ -2249,15 +2330,6 @@ pub fn run() {
                     std::thread::sleep(Duration::from_millis(1_200));
                     let labels = desktop::scene::show_all(&handle);
                     eprintln!("scene: showing {labels:?}");
-                });
-            }
-
-            // Ambient mode is a mode: if it was left on, come back in it.
-            if ambient_on {
-                let handle = handle.clone();
-                std::thread::spawn(move || {
-                    std::thread::sleep(Duration::from_millis(900));
-                    set_ambient(&handle, true);
                 });
             }
 
@@ -2826,6 +2898,7 @@ fn start_ambient_loop(app: AppHandle) {
             let state = app.state::<Shared>();
             let (
                 ambient_enabled,
+                ambient_auto_open,
                 ambient_auto,
                 ambient_opened_ms,
                 idle_limit,
@@ -2843,6 +2916,7 @@ fn start_ambient_loop(app: AppHandle) {
                 let runtime_ambient_opened = runtime.ambient_opened_ms;
                 (
                     settings.ambient_enabled,
+                    settings.ambient_auto_open,
                     runtime_ambient_auto,
                     runtime_ambient_opened,
                     settings.ambient_idle_minutes * 60,
@@ -2910,7 +2984,12 @@ fn start_ambient_loop(app: AppHandle) {
                 if !ambient_enabled && visible {
                     eprintln!("ambient: closed because the master switch is off");
                     set_ambient(&app, false);
-                } else if ambient_enabled && idle_limit > 0 && idle >= idle_limit as u64 && !visible {
+                } else if ambient_enabled
+                    && ambient_auto_open
+                    && idle_limit > 0
+                    && idle >= idle_limit as u64
+                    && !visible
+                {
                     set_ambient_with(&app, true, true);
                 } else if visible
                     && ambient_auto
