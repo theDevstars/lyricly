@@ -672,6 +672,19 @@ impl Pipeline {
             };
         }
 
+        // A file the user dropped in or tap-synced always wins over providers.
+        if let Some(path) = self.cache.override_path(&key) {
+            if let Ok(raw) = std::fs::read_to_string(&path) {
+                if let Some(result) = local::override_result(&raw, &path) {
+                    return PipelineOutcome {
+                        result: Some(result),
+                        attempts: Vec::new(),
+                        reason: None,
+                    };
+                }
+            }
+        }
+
         let config = self.config();
         let providers = self.ordered(&config);
         if providers.is_empty() {
@@ -1099,6 +1112,41 @@ mod tests {
             !second.attempts.is_empty(),
             "an offline provider must be retried, not cached"
         );
+    }
+
+    #[tokio::test]
+    async fn a_user_override_beats_every_provider() {
+        let path = std::env::temp_dir().join(format!(
+            "lyrica-override-test-{}.lrc",
+            std::process::id()
+        ));
+        std::fs::write(&path, "[00:01.00]invented one\n[00:03.00]invented two\n")
+            .expect("write override");
+
+        let cache = Arc::new(cache::Cache::in_memory());
+        cache.set_override(&cache_key(&query()), &path.to_string_lossy());
+
+        let providers = vec![mock(
+            "provider",
+            0,
+            MockOutcome::Ok { confidence: 0.99, timing: Timing::LineSynced },
+        )];
+        let pipeline = Pipeline::new(
+            providers,
+            cache,
+            PipelineConfig {
+                order: vec!["provider".into()],
+                ..Default::default()
+            },
+        );
+
+        let outcome = pipeline.resolve(&query()).await;
+        let result = outcome.result.expect("override result");
+        assert_eq!(result.source, "Local file");
+        assert_eq!(result.lines.len(), 2);
+        assert_eq!(result.lines[0].start_ms, Some(1_000));
+
+        let _ = std::fs::remove_file(path);
     }
 
     #[tokio::test]

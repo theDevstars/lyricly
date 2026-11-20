@@ -29,6 +29,14 @@ export const testLyricsSource = (id: string): Promise<string> =>
 export const setCiderToken = (token: string): Promise<void> =>
   invoke('set_cider_token', { token });
 
+export const tapSyncStart = (): Promise<void> => invoke('tap_sync_start');
+
+export const tapSyncRecord = (): Promise<void> => invoke('tap_sync_record');
+
+export const tapSyncSave = (): Promise<void> => invoke('tap_sync_save');
+
+export const tapSyncCancel = (): Promise<void> => invoke('tap_sync_cancel');
+
 export const openPreferences = (): Promise<void> => invoke('open_preferences');
 
 export const quitApp = (): Promise<void> => invoke('quit_app');

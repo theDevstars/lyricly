@@ -36,6 +36,8 @@ pub struct Settings {
     pub ambient_monitor: usize,
     pub ambient_idle_minutes: u32,
     pub ambient_hotkey: String,
+    /// Hotkey that records the start of the next lyric line while tap-syncing.
+    pub tap_sync_hotkey: String,
     pub wallpaper_layer: bool,
     pub hide_over_fullscreen: bool,
     pub autostart: bool,
@@ -67,6 +69,7 @@ impl Default for Settings {
             ambient_monitor: 0,
             ambient_idle_minutes: 10,
             ambient_hotkey: "Ctrl+Alt+L".into(),
+            tap_sync_hotkey: "Ctrl+Alt+T".into(),
             wallpaper_layer: false,
             hide_over_fullscreen: true,
             autostart: false,

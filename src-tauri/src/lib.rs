@@ -34,6 +34,16 @@ pub struct Runtime {
     pub loading: bool,
     pub ambient_on: bool,
     pub error: Option<String>,
+    /// An in-progress tap-to-sync run, if any.
+    pub tap: Option<TapSession>,
+}
+
+/// Lines and recorded line starts for the track being tap-synced.
+pub struct TapSession {
+    key: String,
+    lines: Vec<String>,
+    taps: Vec<i64>,
+    duration_ms: i64,
 }
 
 pub struct Shared {
@@ -56,6 +66,25 @@ struct Snapshot {
     loading: bool,
     ambient_on: bool,
     error: Option<String>,
+    tap_sync: Option<TapStatus>,
+}
+
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct TapStatus {
+    active: bool,
+    recorded: usize,
+    total: usize,
+}
+
+impl TapStatus {
+    fn of(session: &TapSession) -> Self {
+        Self {
+            active: true,
+            recorded: session.taps.len(),
+            total: session.lines.len(),
+        }
+    }
 }
 
 fn config_path(app: &AppHandle) -> std::path::PathBuf {
@@ -82,6 +111,7 @@ fn snapshot(state: &Shared) -> Snapshot {
         loading: runtime.loading,
         ambient_on: runtime.ambient_on,
         error: runtime.error.clone(),
+        tap_sync: runtime.tap.as_ref().map(TapStatus::of),
     }
 }
 
@@ -302,6 +332,214 @@ fn spawn_lyric_lookup(app: AppHandle, key: String, query: TrackQuery) {
     });
 }
 
+// --------------------------------------------------------------- tap to sync
+
+/// Where the track is right now, using the same interpolation as the UI.
+fn tap_position(playback: &Playback) -> i64 {
+    let elapsed = if playback.status == "playing" {
+        (now_ms() - playback.sampled_at_ms).max(0)
+    } else {
+        0
+    };
+    (playback.position_ms + elapsed).max(0)
+}
+
+fn begin_tap_sync(app: &AppHandle) -> Result<(), String> {
+    {
+        let state = app.state::<Shared>();
+        let mut runtime = state.runtime.lock().expect("runtime lock");
+
+        if runtime.playback.status != "playing" {
+            return Err("start playback first".into());
+        }
+        let lyrics = runtime
+            .lyrics
+            .as_ref()
+            .ok_or("no lyrics are loaded for this track")?;
+        let lines: Vec<String> = lyrics.lines.iter().map(|line| line.text.clone()).collect();
+        if lines.is_empty() {
+            return Err("this track has no lyric lines".into());
+        }
+
+        runtime.tap = Some(TapSession {
+            key: runtime.track_key.clone(),
+            lines,
+            taps: Vec::new(),
+            duration_ms: runtime.playback.duration_ms,
+        });
+    }
+
+    emit_snapshot(app);
+    Ok(())
+}
+
+/// Records the current position as the start of the next line. The last tap
+/// saves automatically, so a full pass needs no extra keystroke.
+fn record_tap(app: &AppHandle) -> Result<(), String> {
+    let finished = {
+        let state = app.state::<Shared>();
+        let mut runtime = state.runtime.lock().expect("runtime lock");
+
+        if runtime.playback.status != "playing" {
+            return Err("playback is paused".into());
+        }
+        let position = tap_position(&runtime.playback);
+
+        let session = runtime.tap.as_mut().ok_or("tap sync is not running")?;
+        if session.taps.len() < session.lines.len() {
+            session.taps.push(position);
+        }
+        session.taps.len() >= session.lines.len()
+    };
+
+    if finished {
+        save_tap_sync(app)?;
+    } else {
+        emit_snapshot(app);
+    }
+    Ok(())
+}
+
+fn save_tap_sync(app: &AppHandle) -> Result<(), String> {
+    let state = app.state::<Shared>();
+    let session = {
+        let mut runtime = state.runtime.lock().expect("runtime lock");
+        runtime.tap.take()
+    };
+    let Some(session) = session else {
+        return Err("tap sync is not running".into());
+    };
+
+    if session.taps.is_empty() {
+        emit_snapshot(app);
+        return Err("no taps were recorded".into());
+    }
+
+    let lrc = build_lrc(&session);
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("overrides");
+    std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
+    let file = dir.join(format!("{}.lrc", sanitize_key(&session.key)));
+    std::fs::write(&file, lrc).map_err(|error| error.to_string())?;
+
+    state.cache.set_override(&session.key, &file.to_string_lossy());
+    state.cache.clear_negative(&session.key);
+    state.cache.forget(&session.key);
+
+    // Re-resolve the current track so the new timings load immediately.
+    {
+        let mut runtime = state.runtime.lock().expect("runtime lock");
+        if runtime.track_key == session.key {
+            runtime.track_key.clear();
+            runtime.lyrics = None;
+            runtime.loading = true;
+        }
+    }
+
+    emit_snapshot(app);
+    Ok(())
+}
+
+/// `[mm:ss.xx]line` for every line. Lines past the last tap are spread evenly
+/// so the file always covers the whole lyric.
+fn build_lrc(session: &TapSession) -> String {
+    let mut out = String::new();
+    let last = session.taps.last().copied().unwrap_or(0);
+
+    for (index, line) in session.lines.iter().enumerate() {
+        let mut start = match session.taps.get(index) {
+            Some(time) => *time,
+            None => {
+                let step = (index + 1 - session.taps.len()) as i64;
+                last + step * 4_000
+            }
+        };
+        if session.duration_ms > 0 {
+            start = start.min(session.duration_ms);
+        }
+
+        let minutes = start / 60_000;
+        let seconds = (start % 60_000) as f64 / 1000.0;
+        out.push_str(&format!("[{minutes:02}:{seconds:05.2}]{line}\n"));
+    }
+
+    out
+}
+
+fn sanitize_key(key: &str) -> String {
+    let mut out: String = key
+        .chars()
+        .map(|ch| {
+            if ch.is_alphanumeric() {
+                ch.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    while out.contains("--") {
+        out = out.replace("--", "-");
+    }
+    let trimmed = out.trim_matches('-').to_string();
+    if trimmed.is_empty() {
+        "track".into()
+    } else {
+        trimmed
+    }
+}
+
+/// One press of the tap hotkey: start a run, or record the next line.
+fn hotkey_tap(app: &AppHandle) {
+    let active = {
+        let state = app.state::<Shared>();
+        let runtime = state.runtime.lock().expect("runtime lock");
+        runtime.tap.is_some()
+    };
+
+    let result = if active {
+        record_tap(app)
+    } else {
+        begin_tap_sync(app)
+    };
+
+    if let Err(error) = result {
+        eprintln!("tap sync: {error}");
+        let _ = app.emit("lyrica:tap-sync", serde_json::json!({ "error": error }));
+    }
+}
+
+fn shortcut_matches(
+    shortcut: &tauri_plugin_global_shortcut::Shortcut,
+    configured: &str,
+) -> bool {
+    configured
+        .parse::<tauri_plugin_global_shortcut::Shortcut>()
+        .map(|parsed| parsed == *shortcut)
+        .unwrap_or(false)
+}
+
+fn sync_hotkeys(app: &AppHandle) {
+    let (ambient, tap) = {
+        let state = app.state::<Shared>();
+        let runtime = state.runtime.lock().expect("runtime lock");
+        (
+            runtime.settings.ambient_hotkey.clone(),
+            runtime.settings.tap_sync_hotkey.clone(),
+        )
+    };
+
+    let shortcuts = app.global_shortcut();
+    let _ = shortcuts.unregister_all();
+    for combo in [ambient, tap] {
+        if let Err(error) = shortcuts.register(combo.as_str()) {
+            eprintln!("global shortcut {combo}: {error}");
+        }
+    }
+}
+
 // ------------------------------------------------------------------ autostart + idle
 
 #[cfg(windows)]
@@ -433,6 +671,8 @@ fn update_settings(app: AppHandle, patch: Settings) {
             cider.port = runtime.settings.cider_port;
             cider.prefer_api = runtime.settings.cider_prefer_api;
         }
+        drop(runtime);
+        sync_hotkeys(&app);
     }
     set_autostart(patch_autostart(&app));
     let wallpaper = patch_wallpaper(&app);
@@ -551,6 +791,31 @@ fn reload_lyrics(app: AppHandle) {
 }
 
 #[tauri::command]
+fn tap_sync_start(app: AppHandle) -> Result<(), String> {
+    begin_tap_sync(&app)
+}
+
+#[tauri::command]
+fn tap_sync_record(app: AppHandle) -> Result<(), String> {
+    record_tap(&app)
+}
+
+#[tauri::command]
+fn tap_sync_save(app: AppHandle) -> Result<(), String> {
+    save_tap_sync(&app)
+}
+
+#[tauri::command]
+fn tap_sync_cancel(app: AppHandle) {
+    {
+        let state = app.state::<Shared>();
+        let mut runtime = state.runtime.lock().expect("runtime lock");
+        runtime.tap = None;
+    }
+    emit_snapshot(&app);
+}
+
+#[tauri::command]
 fn test_cider(app: AppHandle) -> players::cider::CiderStatus {
     let shared = app.state::<Shared>().cider.clone();
     let config = shared
@@ -596,8 +861,24 @@ pub fn run() {
         }))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, _shortcut, event| {
-                    if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                .with_handler(|app, shortcut, event| {
+                    if event.state() != tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        return;
+                    }
+                    let Some(state) = app.try_state::<Shared>() else {
+                        return;
+                    };
+                    let (ambient, tap) = {
+                        let runtime = state.runtime.lock().expect("runtime lock");
+                        (
+                            runtime.settings.ambient_hotkey.clone(),
+                            runtime.settings.tap_sync_hotkey.clone(),
+                        )
+                    };
+
+                    if shortcut_matches(shortcut, &tap) {
+                        hotkey_tap(app);
+                    } else if shortcut_matches(shortcut, &ambient) {
                         let visible = app
                             .get_webview_window("ambient")
                             .map(|w| w.is_visible().unwrap_or(false))
@@ -645,6 +926,7 @@ pub fn run() {
             let saved_window = settings.window.clone();
 
             let accent_hotkey = settings.ambient_hotkey.clone();
+            let tap_hotkey = settings.tap_sync_hotkey.clone();
             let autostart_on = settings.autostart;
             let wallpaper_on = settings.wallpaper_layer;
             let ambient_on = settings.ambient_enabled;
@@ -658,6 +940,7 @@ pub fn run() {
                     loading: false,
                     ambient_on: false,
                     error: None,
+                    tap: None,
                 }),
                 cache,
                 pipeline,
@@ -677,6 +960,9 @@ pub fn run() {
 
             if let Err(error) = app.global_shortcut().register(accent_hotkey.as_str()) {
                 eprintln!("global shortcut: {error}");
+            }
+            if let Err(error) = app.global_shortcut().register(tap_hotkey.as_str()) {
+                eprintln!("tap sync shortcut: {error}");
             }
 
             if wallpaper_on {
@@ -735,6 +1021,10 @@ pub fn run() {
             set_wallpaper_layer,
             reload_lyrics,
             test_lyrics_source,
+            tap_sync_start,
+            tap_sync_record,
+            tap_sync_save,
+            tap_sync_cancel,
             test_cider,
             set_cider_token,
             open_preferences,
@@ -849,4 +1139,49 @@ fn start_ambient_loop(app: AppHandle) {
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tap_tests {
+    use super::*;
+
+    fn session(lines: &[&str], taps: &[i64], duration_ms: i64) -> TapSession {
+        TapSession {
+            key: "spotify::invented::200".into(),
+            lines: lines.iter().map(|line| line.to_string()).collect(),
+            taps: taps.to_vec(),
+            duration_ms,
+        }
+    }
+
+    #[test]
+    fn lrc_uses_the_recorded_times() {
+        let lrc = build_lrc(&session(&["invented one", "invented two"], &[4_200, 9_800], 200_000));
+        assert_eq!(lrc, "[00:04.20]invented one\n[00:09.80]invented two\n");
+    }
+
+    #[test]
+    fn untapped_lines_follow_the_last_tap() {
+        let lrc = build_lrc(&session(&["one", "two", "three"], &[5_000], 200_000));
+        let lines: Vec<&str> = lrc.lines().collect();
+        assert_eq!(lines.len(), 3);
+        assert!(lines[1].starts_with("[00:09.00]"), "{}", lines[1]);
+        assert!(lines[2].starts_with("[00:13.00]"), "{}", lines[2]);
+    }
+
+    #[test]
+    fn times_never_exceed_the_track() {
+        let lrc = build_lrc(&session(&["one", "two"], &[199_000], 200_000));
+        let last = lrc.lines().last().unwrap_or_default();
+        assert!(last.starts_with("[03:20.00]"), "{last}");
+    }
+
+    #[test]
+    fn keys_become_safe_file_names() {
+        assert_eq!(
+            sanitize_key("spotify|cider::joji::slow dancing"),
+            "spotify-cider-joji-slow-dancing"
+        );
+        assert_eq!(sanitize_key("::"), "track");
+    }
 }

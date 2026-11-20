@@ -58,6 +58,7 @@ export interface Settings {
   ambientMonitor: number;
   ambientIdleMinutes: number;
   ambientHotkey: string;
+  tapSyncHotkey: string;
   wallpaperLayer: boolean;
   hideOverFullscreen: boolean;
   autostart: boolean;
@@ -82,4 +83,5 @@ export interface Snapshot {
   loading: boolean;
   ambientOn: boolean;
   error: string | null;
+  tapSync: { active: boolean; recorded: number; total: number } | null;
 }

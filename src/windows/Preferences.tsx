@@ -8,6 +8,10 @@ import {
   setAmbientMode,
   setCiderToken,
   setStyle,
+  tapSyncCancel,
+  tapSyncRecord,
+  tapSyncSave,
+  tapSyncStart,
   testCider,
   testLyricsSource,
   updateSettings,
@@ -37,6 +41,8 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
   const [ciderStatus, setCiderStatus] = useState<CiderStatus | null>(null);
   const [testingCider, setTestingCider] = useState(false);
   const [sourceResults, setSourceResults] = useState<Record<string, string>>({});
+  const [hotkeyDraft, setHotkeyDraft] = useState(snapshot.settings.tapSyncHotkey);
+  const [tapError, setTapError] = useState<string | null>(null);
   // Held locally and saved on blur, so a settings round trip cannot fight typing.
   const [hostDraft, setHostDraft] = useState(snapshot.settings.ciderHost);
   const [portDraft, setPortDraft] = useState(String(snapshot.settings.ciderPort));
@@ -99,6 +105,21 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
     } catch (error) {
       setSourceResults((current) => ({ ...current, [id]: String(error) }));
     }
+  };
+
+  const runTapAction = async (action: () => Promise<unknown>) => {
+    try {
+      setTapError(null);
+      await action();
+    } catch (error) {
+      setTapError(String(error));
+    }
+  };
+
+  const commitTapHotkey = () => {
+    const combo = hotkeyDraft.trim() || 'Ctrl+Alt+T';
+    setHotkeyDraft(combo);
+    commit({ tapSyncHotkey: combo });
   };
 
   const commitCiderHost = () => {
@@ -477,6 +498,67 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
             />
             <output>{(draft.nudgeMs / 1000).toFixed(1)}s</output>
           </label>
+
+          <div className="tap-sync">
+            <div className="tap-sync-head">
+              <span>Tap to sync</span>
+              <small>
+                {snapshot.tapSync?.active
+                  ? `${snapshot.tapSync.recorded} of ${snapshot.tapSync.total} lines recorded`
+                  : 'Not running'}
+              </small>
+            </div>
+            <label className="field field-wide">
+              <span>Hotkey</span>
+              <input
+                type="text"
+                value={hotkeyDraft}
+                onChange={(event) => setHotkeyDraft(event.target.value)}
+                onBlur={commitTapHotkey}
+              />
+            </label>
+            <p className="note">
+              Press the hotkey at the start of each line while the song plays; the last line saves
+              automatically. The result is written as an .lrc override for this track and loads the
+              next time it plays.
+            </p>
+            <div className="panel-actions">
+              {snapshot.tapSync?.active ? (
+                <>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => void runTapAction(() => tapSyncRecord())}
+                  >
+                    Record line
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => void runTapAction(() => tapSyncSave())}
+                  >
+                    Save .lrc
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost danger"
+                    onClick={() => void tapSyncCancel()}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => void runTapAction(() => tapSyncStart())}
+                >
+                  Start tap sync
+                </button>
+              )}
+            </div>
+            {tapError && <p className="note">{tapError}</p>}
+          </div>
 
           <div className="toggle-row">
             <span>Start with Windows</span>

@@ -105,6 +105,10 @@ result below the confidence threshold falls through to the next one.
 estimated timing — spread across the track by syllable count, after skipping the intro — and
 are marked *estimated* in the app. The nudge offset applies to every source.
 
+If nothing lines up, **tap to sync** (`Ctrl+Alt+T` by default) records the start of each line
+while the track plays and writes an `.lrc` override for it; overrides take precedence over every
+provider and load on the next play.
+
 **Data.** Lyrics live in a local SQLite cache for personal display only. Nothing is uploaded
 anywhere, and no lyrics text is stored in this repository. Optional sources stay off until you
 enable them; you are responsible for the keys you add and for the terms of the services you

@@ -128,6 +128,13 @@ impl Cache {
         );
     }
 
+    /// Drops a cached result so the next lookup reads fresh (or an override).
+    pub fn forget(&self, key: &str) {
+        if let Ok(connection) = self.connection.lock() {
+            let _ = connection.execute("DELETE FROM lyrics_cache WHERE key = ?1", params![key]);
+        }
+    }
+
     pub fn clear_negative(&self, key: &str) {
         if let Ok(connection) = self.connection.lock() {
             let _ = connection.execute("DELETE FROM lyrics_negative WHERE key = ?1", params![key]);

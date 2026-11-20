@@ -348,6 +348,40 @@ body[data-window='ambient'] {
   position: relative;
 }
 
+.tap-badge {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 92, 92, 0.22);
+  border: 1px solid rgba(255, 92, 92, 0.45);
+  pointer-events: none;
+}
+
+.tap-sync {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tap-sync-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 12.5px;
+}
+
+.tap-sync-head small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .lyric-credit {
   position: absolute;
   right: 12px;

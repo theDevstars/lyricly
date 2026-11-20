@@ -141,6 +141,11 @@ export function LyricsWindow({ snapshot }: LyricsWindowProps) {
         {snapshot.error && hasTrack && !snapshot.loading && (
           <div className="error-hint">{snapshot.error}</div>
         )}
+        {snapshot.tapSync?.active && (
+          <div className="tap-badge">
+            tap · {snapshot.tapSync.recorded}/{snapshot.tapSync.total}
+          </div>
+        )}
         {snapshot.lyrics && (
           <div className="lyric-credit">
             {snapshot.lyrics.attribution ?? `Lyrics from ${snapshot.lyrics.source}`}

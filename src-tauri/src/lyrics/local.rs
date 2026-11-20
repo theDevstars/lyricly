@@ -9,6 +9,25 @@ use crate::lyrics::{
 use async_trait::async_trait;
 use std::sync::Arc;
 
+/// Parses a user file (`.lrc` with timings, otherwise plain text) into a result.
+/// A tap-synced file goes through here too.
+pub fn override_result(raw: &str, path: &str) -> Option<LyricsResult> {
+    if let Some(lyrics) = crate::lyrics::parse_lrc(raw, "Local file") {
+        let mut result = result_from_engine(lyrics, 1.0);
+        result.source_url = Some(path.to_string());
+        result.attribution = Some("Lyrics from your local file".into());
+        return Some(result);
+    }
+
+    let mut result = plain_result(raw, "Local file", 1.0);
+    if result.lines.is_empty() {
+        return None;
+    }
+    result.source_url = Some(path.to_string());
+    result.attribution = Some("Lyrics from your local file".into());
+    Some(result)
+}
+
 pub struct LocalProvider {
     cache: Arc<Cache>,
 }
@@ -44,19 +63,6 @@ impl LyricsProvider for LocalProvider {
             ProviderError::Upstream(format!("could not read {path}: {error}"))
         })?;
 
-        if let Some(lyrics) = crate::lyrics::parse_lrc(&raw, "Local file") {
-            let mut result = result_from_engine(lyrics, 1.0);
-            result.source_url = Some(path.clone());
-            result.attribution = Some("Lyrics from your local file".into());
-            return Ok(result);
-        }
-
-        let mut result = plain_result(&raw, "Local file", 1.0);
-        if result.lines.is_empty() {
-            return Err(ProviderError::NotFound);
-        }
-        result.source_url = Some(path);
-        result.attribution = Some("Lyrics from your local file".into());
-        Ok(result)
+        override_result(&raw, &path).ok_or(ProviderError::NotFound)
     }
 }
