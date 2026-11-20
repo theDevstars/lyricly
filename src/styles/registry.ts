@@ -2,6 +2,7 @@ import { fisheye, fisheyeVisual } from './kinetic/fisheye';
 import { ship } from './kinetic/ship';
 import { visual } from './kinetic/visual';
 import { codestyle, codestyleVisual } from './scenes/codestyle';
+import { messages } from './scenes/messages';
 import type { LyricStyle, StyleGroup } from './types';
 
 export const STYLES: LyricStyle[] = [
@@ -11,6 +12,7 @@ export const STYLES: LyricStyle[] = [
   fisheyeVisual,
   codestyle,
   codestyleVisual,
+  messages,
 ];
 
 export const GROUPS: { id: StyleGroup; title: string; blurb: string }[] = [

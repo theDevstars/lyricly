@@ -368,6 +368,7 @@ fn get_styles() -> Vec<&'static str> {
         "fisheye-visual",
         "codestyle",
         "codestyle-visual",
+        "messages",
     ]
 }
 

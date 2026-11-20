@@ -58,6 +58,7 @@ where `state` carries the lines, `activeIndex`, per-word `wordProgress`, the tra
 | --- | --- |
 | Codestyle | The lyric typed out as code, with a blinking red cursor |
 | Codestyle Visual | Codestyle, with an icon for every word that has one |
+| Messages | The song plays out as an iMessage thread, one bubble per line |
 
 ## Build
 
