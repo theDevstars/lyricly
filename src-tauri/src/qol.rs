@@ -248,12 +248,23 @@ pub fn in_window(value: &str, minutes: u32) -> bool {
     }
 }
 
-/// Meeting apps, by the process names Windows reports.
-pub fn is_video_call(process: &str) -> bool {
-    matches!(
-        process.trim_end_matches(".exe").to_lowercase().as_str(),
-        "teams" | "ms-teams" | "zoom" | "webex" | "webexmta" | "gotomeeting" | "discord"
-    )
+/// A call needs a meeting client in front *and* a call window: the client itself
+/// sits in the foreground all day (Teams in the tray, Discord in the taskbar),
+/// and treating that as a call shut the ambient screen off permanently. Discord
+/// is left out entirely — its window says nothing about a call being live.
+pub fn is_video_call(process: &str, title: &str) -> bool {
+    let name = process.trim_end_matches(".exe").to_lowercase();
+    let meeting_app = matches!(
+        name.as_str(),
+        "teams" | "ms-teams" | "zoom" | "webex" | "webexmta" | "gotomeeting"
+    );
+    if !meeting_app {
+        return false;
+    }
+    let title = title.to_lowercase();
+    ["meeting", "call", "webinar", "huddle", "sharing"]
+        .iter()
+        .any(|word| title.contains(word))
 }
 
 /// Screen sharing is inferred from the app that owns the screen while it shares:
@@ -337,6 +348,7 @@ mod win {
     #[link(name = "user32")]
     extern "system" {
         fn GetForegroundWindow() -> Hwnd;
+        fn GetWindowTextW(window: Hwnd, text: *mut u16, max: i32) -> i32;
         fn GetWindowThreadProcessId(window: Hwnd, process_id: *mut u32) -> u32;
         fn GetWindowRect(window: Hwnd, rect: *mut Rect) -> i32;
         fn GetWindowLongW(window: Hwnd, index: i32) -> i32;
@@ -388,6 +400,18 @@ mod win {
         }
     }
 
+    fn window_title(window: Hwnd) -> String {
+        if window == 0 {
+            return String::new();
+        }
+        let mut buffer = [0u16; 512];
+        let len = unsafe { GetWindowTextW(window, buffer.as_mut_ptr(), buffer.len() as i32) };
+        if len <= 0 {
+            return String::new();
+        }
+        String::from_utf16_lossy(&buffer[..len as usize])
+    }
+
     fn covers_monitor(window: Hwnd) -> bool {
         unsafe {
             let mut rect = Rect::default();
@@ -421,6 +445,7 @@ mod win {
                 GetWindowThreadProcessId(foreground, &mut process_id);
             }
             let process = process_name(process_id);
+            let title = window_title(foreground);
             let style = if foreground != 0 {
                 GetWindowLongW(foreground, GWL_STYLE) as u32
             } else {
@@ -441,7 +466,7 @@ mod win {
 
             let now = chrono_minutes();
             Env {
-                video_call: is_video_call(&process),
+                video_call: is_video_call(&process, &title),
                 screen_share: is_screen_share(&process),
                 process,
                 fullscreen,
@@ -690,9 +715,11 @@ mod tests {
 
     #[test]
     fn meeting_and_sharing_apps_are_recognised() {
-        assert!(is_video_call("Teams.exe"));
-        assert!(is_video_call("zoom"));
-        assert!(!is_video_call("chrome"));
+        assert!(is_video_call("Teams.exe", "Meeting with Sam | Microsoft Teams"));
+        assert!(is_video_call("zoom", "Zoom Meeting"));
+        assert!(!is_video_call("Teams.exe", "Chat | Microsoft Teams"));
+        assert!(!is_video_call("discord", "Discord"));
+        assert!(!is_video_call("chrome", "YouTube"));
         assert!(is_screen_share("obs64.exe"));
         assert!(is_screen_share("ms-teams"));
     }

@@ -45,12 +45,20 @@ indicators are not drawn yet.
 
 **Ambient mode** — a full-screen, click-through overlay (`WS_EX_LAYERED | WS_EX_TRANSPARENT`) on a
 chosen monitor, pinned topmost so it sits above borderless-fullscreen apps. Toggle it from the tray,
-the settings window, or the global hotkey (`Ctrl+Alt+L` by default). The **Ambient mode** switch is
-the master and is remembered across launches; only while it is on does the idle timer bring the
-screen back. A screen you opened yourself stays until you close it, while one the idle timer opened
-fades out as soon as you touch the keyboard again. It steps aside for exclusive-fullscreen apps, detected by a window
+the settings window, or the global hotkey (`Ctrl+Alt+L` by default, which peeks it on and off without
+changing the switch). The **Ambient mode** switch is the master and is remembered across launches;
+only while it is on does the idle timer bring the screen back. A screen you opened yourself stays until you close it, while one the idle timer opened
+fades out as soon as you touch the keyboard again. While it is up the floating overlay steps aside,
+so the screen is one layer rather than two stacked full-screen webviews. It steps aside for exclusive-fullscreen apps, detected by a window
 the desktop compositor cannot report frame bounds for (that is what a swapchain looks like from
 outside). **Wallpaper layer** re-parents the overlay to the `WorkerW` behind the desktop icons.
+
+**Rim Light** — a two-colour gradient ring around the edge of the ambient display, drawn inside the
+window so nothing is pushed off-screen and the glow spills inward. Colours come from the active
+style's palette or from two wells of your own; the ring can breathe with the song, drift slowly or
+hold still, and thickness (2–24 px) and glow are independent. It lives on the ambient screen only,
+because that is the surface with a display edge to light up, and Light mode keeps the ring while
+dropping its motion and most of its blur.
 
 **Style gallery** — Preferences → Styles. Three columns of cards, each with a gradient thumbnail,
 its name, a one-line description and a live preview of that style on hover.
@@ -284,13 +292,13 @@ A rule is one condition and one action:
 | fullscreen | a borderless, monitor-sized window owned by another process is in front |
 | app | a named process is in front (comma separated, `.exe` optional) |
 | battery | the laptop is not on AC |
-| videoCall | Teams, Zoom, Webex, GoToMeeting or Discord is in front |
+| videoCall | a Teams, Zoom, Webex or GoToMeeting call window is in front (the client merely being open is not a call, and Discord is not counted) |
 | screenShare | a meeting app or a recorder (OBS, Streamlabs, XSplit) is in front |
 | time | the local clock is inside `HH:MM-HH:MM`, wrapping past midnight |
 
 Actions: hide the overlay, use Light mode, pause the ambient screen, switch Streaming mode on, or dim and warm the ambient screen. Every matching rule applies, so conditions compose. **Test** evaluates a rule against the desktop as it is at that moment. Three rules ship enabled (fullscreen hides, a call pauses the ambient screen, battery starts Light mode); the 22:00–07:00 warm schedule ships switched off, because dimming someone's screen at ten is a choice, not a default.
 
-Screen sharing is inferred from which app owns the screen — the share runs inside the meeting process or the recorder. It cannot see a browser tab sharing through Meet, and the app does not pretend to.
+A call is matched on the meeting client's process name *and* its window title, because these clients sit in front all day — treating that as a call switched the ambient screen off permanently. Screen sharing is inferred from which app owns the screen — the share runs inside the meeting process or the recorder. It cannot see a browser tab sharing through Meet, and the app does not pretend to.
 
 ### Schedules and theme
 
@@ -317,7 +325,7 @@ A fullscreen app always sends the overlay away, matching the existing fullscreen
 
 ### What this pass does not do
 
-The app has no Rim Light FFT, no per-display profiles and no 3D style group, so Light mode cannot pause or thin those: it lowers the frame rate and drops compositing instead. Light mode is per renderer, not per style. Detection is Windows-process based; a browser tab, a virtual machine or a game with an unusual fullscreen mode can still be misread.
+Rim Light has no FFT of its own (it does not follow the audio spectrum), there are no per-display profiles and no 3D style group, so Light mode cannot pause or thin those: it lowers the frame rate, stops the rim's motion and drops compositing instead. Light mode is per renderer, not per style. Detection is Windows-process based; a browser tab, a virtual machine or a game with an unusual fullscreen mode can still be misread.
 
 ## Notes
 

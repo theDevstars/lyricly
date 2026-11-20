@@ -1598,3 +1598,81 @@ html[data-windows-light='on'] .qol-note,
 html[data-windows-light='on'] .qol-empty em {
   background: rgba(255, 255, 255, 0.86);
 }
+
+/* ---------------------------------------------------------------- rim light */
+
+/* A gradient ring around the whole display, softened inward by the glow. */
+.rim-light {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  padding: var(--rim-width, 12px);
+  pointer-events: none;
+  overflow: hidden;
+  mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000);
+  mask-size: 100% 100%, 100% 100%;
+  mask-clip: content-box, border-box;
+  mask-composite: exclude;
+  -webkit-mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000);
+  -webkit-mask-size: 100% 100%, 100% 100%;
+  -webkit-mask-clip: content-box, border-box;
+  -webkit-mask-composite: xor;
+  filter: blur(calc(var(--rim-glow, 0.6) * 24px));
+  opacity: calc(0.5 + var(--rim-glow, 0.6) * 0.5);
+}
+
+.rim-light::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(125deg, var(--rim-a), var(--rim-b), var(--rim-a));
+  background-size: 240% 240%;
+}
+
+.rim-light[data-anim='breathe'] {
+  animation: rim-breathe 6.5s ease-in-out infinite;
+}
+
+.rim-light[data-anim='drift']::before {
+  animation: rim-drift 28s linear infinite;
+}
+
+@keyframes rim-breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes rim-drift {
+  from {
+    transform: translate3d(-20%, 0, 0);
+  }
+  to {
+    transform: translate3d(20%, 0, 0);
+  }
+}
+
+/* Light mode keeps the ring but stops paying for the motion and the blur. */
+html[data-light='on'] .rim-light {
+  animation: none !important;
+  filter: blur(3px);
+}
+
+.rim-colors {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.rim-colors input[type='color'] {
+  width: 46px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 7px;
+  background: transparent;
+}

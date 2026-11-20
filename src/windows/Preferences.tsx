@@ -855,6 +855,94 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
               <i />
             </label>
           </div>
+          <h2>Rim Light</h2>
+          <p className="note">
+            Two colours bleeding off the edge of the ambient display, taken from the active style
+            or picked here. The ring sits inside the monitor edge, so nothing is pushed off-screen.
+          </p>
+
+          <div className="toggle-row">
+            <div>
+              <span>Rim Light</span>
+              <small>Ambient screen only; the floating overlay keeps its own shape</small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={draft.rimLightEnabled}
+                onChange={(event) => commit({ rimLightEnabled: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
+
+          <label className="field">
+            <span>Thickness</span>
+            <input
+              type="range"
+              min={2}
+              max={24}
+              value={draft.rimLightThickness}
+              onChange={(event) => commit({ rimLightThickness: Number(event.target.value) })}
+            />
+            <output>{draft.rimLightThickness}px</output>
+          </label>
+
+          <label className="field">
+            <span>Glow</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={Math.round(draft.rimLightGlow * 100)}
+              onChange={(event) => commit({ rimLightGlow: Number(event.target.value) / 100 })}
+            />
+            <output>{Math.round(draft.rimLightGlow * 100)}%</output>
+          </label>
+
+          <label className="field">
+            <span>Motion</span>
+            <select
+              value={draft.rimLightAnimation}
+              onChange={(event) => commit({ rimLightAnimation: event.target.value })}
+            >
+              <option value="breathe">Breathe with the song</option>
+              <option value="drift">Drift slowly</option>
+              <option value="still">Hold still</option>
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Colours</span>
+            <select
+              value={draft.rimLightColors}
+              onChange={(event) => commit({ rimLightColors: event.target.value })}
+            >
+              <option value="style">From the active style</option>
+              <option value="custom">Pick two</option>
+            </select>
+          </label>
+
+          {draft.rimLightColors === 'custom' && (
+            <label className="field field-wide">
+              <span>Two colours</span>
+              <div className="rim-colors">
+                <input
+                  type="color"
+                  value={draft.rimLightColorA}
+                  onChange={(event) => commit({ rimLightColorA: event.target.value })}
+                  aria-label="Rim Light colour one"
+                />
+                <input
+                  type="color"
+                  value={draft.rimLightColorB}
+                  onChange={(event) => commit({ rimLightColorB: event.target.value })}
+                  aria-label="Rim Light colour two"
+                />
+              </div>
+            </label>
+          )}
+
           <h2>Late Night</h2>
           <p className="note">
             A full-screen, lock-screen-styled takeover for the idle evening. Windows does not let

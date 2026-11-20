@@ -134,6 +134,18 @@ pub struct Settings {
     pub spotify_account: String,
     pub spotify_product: String,
     pub spotify_expires_at_ms: i64,
+    /// Rim Light: two-colour glow around the edge of the ambient display.
+    pub rim_light_enabled: bool,
+    /// Ring thickness in pixels, 2–24.
+    pub rim_light_thickness: u32,
+    /// 0..1: how far the glow spills inward.
+    pub rim_light_glow: f32,
+    /// "breathe", "drift" or "still".
+    pub rim_light_animation: String,
+    /// "style" takes the active style's colours, "custom" uses the two below.
+    pub rim_light_colors: String,
+    pub rim_light_color_a: String,
+    pub rim_light_color_b: String,
     /// Cider (cider.sh) as an additional player source.
     pub cider_enabled: bool,
     pub cider_host: String,
@@ -222,6 +234,13 @@ impl Default for Settings {
             spotify_account: String::new(),
             spotify_product: String::new(),
             spotify_expires_at_ms: 0,
+            rim_light_enabled: true,
+            rim_light_thickness: 12,
+            rim_light_glow: 0.6,
+            rim_light_animation: "breathe".into(),
+            rim_light_colors: "style".into(),
+            rim_light_color_a: "#8EF0C9".into(),
+            rim_light_color_b: "#FF5C7A".into(),
             cider_enabled: false,
             cider_host: "localhost".into(),
             cider_port: 10_767,

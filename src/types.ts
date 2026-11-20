@@ -105,6 +105,13 @@ export interface Settings {
   lyricsPreferSynced: boolean;
   lyricsConfidenceThreshold: number;
   lyricsAutoEstimate: boolean;
+  rimLightEnabled: boolean;
+  rimLightThickness: number;
+  rimLightGlow: number;
+  rimLightAnimation: string;
+  rimLightColors: string;
+  rimLightColorA: string;
+  rimLightColorB: string;
   ciderEnabled: boolean;
   ciderHost: string;
   ciderPort: number;

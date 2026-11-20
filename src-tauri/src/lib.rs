@@ -51,6 +51,9 @@ pub struct Runtime {
     pub ambient_auto: bool,
     /// When ambient was last shown, so the keypress that opened it is not activity.
     pub ambient_opened_ms: i64,
+    /// True when the floating overlay was hidden for the ambient screen, so it
+    /// comes back when ambient closes.
+    pub overlay_hidden: bool,
     pub error: Option<String>,
     /// Why capture exclusion could not be applied, if it failed.
     pub stream_safe_error: Option<String>,
@@ -343,8 +346,28 @@ fn set_ambient_with(app: &AppHandle, on: bool, auto: bool) {
             overlay::pin_topmost(handle.0 as isize);
             overlay::show_without_focus(handle.0 as isize);
         }
+
+        // Ambient is a whole-screen takeover: the floating overlay steps aside
+        // so two opaque webviews are not stacked, one hiding the other.
+        if let Some(lyrics) = app.get_webview_window("lyrics") {
+            if lyrics.is_visible().unwrap_or(false) {
+                let state = app.state::<Shared>();
+                let mut runtime = state.runtime.lock().expect("runtime lock");
+                runtime.overlay_hidden = true;
+                drop(runtime);
+                let _ = lyrics.hide();
+            }
+        }
     } else if let Some(window) = ambient_window(app) {
         let _ = window.hide();
+        let restore = {
+            let state = app.state::<Shared>();
+            let mut runtime = state.runtime.lock().expect("runtime lock");
+            std::mem::take(&mut runtime.overlay_hidden)
+        };
+        if restore {
+            show_lyrics_window(app);
+        }
     }
 
     {
@@ -1123,6 +1146,12 @@ fn update_settings(app: AppHandle, patch: Settings) {
         next.cider_port = next.cider_port.clamp(1, 65_535);
         let ambient_master = next.ambient_enabled;
         let ambient_changed = ambient_master != runtime.settings.ambient_enabled;
+        if ambient_changed {
+            eprintln!(
+                "settings: ambient {} -> {ambient_master} via update_settings",
+                runtime.settings.ambient_enabled
+            );
+        }
         runtime.settings = next;
         runtime.settings.save(&config_path(&app));
         state.genius_parsing.store(
@@ -1395,7 +1424,14 @@ fn set_ambient_mode(app: AppHandle, enabled: bool) {
 fn save_settings(app: &AppHandle, mutate: impl FnOnce(&mut Settings)) {
     let state = app.state::<Shared>();
     let mut runtime = state.runtime.lock().expect("runtime lock");
+    let before = runtime.settings.ambient_enabled;
     mutate(&mut runtime.settings);
+    if runtime.settings.ambient_enabled != before {
+        eprintln!(
+            "settings: ambient {before} -> {} in save_settings",
+            runtime.settings.ambient_enabled
+        );
+    }
     runtime.settings.save(&config_path(app));
 }
 
@@ -1806,10 +1842,9 @@ pub fn run() {
                             .get_webview_window("ambient")
                             .map(|w| w.is_visible().unwrap_or(false))
                             .unwrap_or(false);
-                        // The hotkey is the master switch too, so ambient can
-                        // come back on its own the next time the desk is idle.
-                        // Save first: the snapshot `set_ambient` emits carries it.
-                        save_settings(app, |settings| settings.ambient_enabled = !visible);
+                        // A peek: show or hide the screen for now, but leave the
+                        // master switch alone, so dismissing it does not turn the
+                        // mode (and the idle timer) off for good.
                         set_ambient(app, !visible);
                     }
                 })
@@ -1871,6 +1906,7 @@ pub fn run() {
                     ambient_on: false,
                     ambient_auto: false,
                     ambient_opened_ms: 0,
+                    overlay_hidden: false,
                     error: None,
                     stream_safe_error: None,
                     late_night: false,
@@ -2354,6 +2390,7 @@ fn qol_tick(app: &AppHandle) {
             .map(|window| window.is_visible().unwrap_or(false))
             .unwrap_or(false);
         if visible {
+            eprintln!("ambient: closed by a call rule ({})", env.process);
             set_ambient(app, false);
         }
     }
@@ -2361,6 +2398,12 @@ fn qol_tick(app: &AppHandle) {
     if fade_now {
         let _ = app.emit("lyrica:ambient-sleep", 1_400u64);
         std::thread::sleep(Duration::from_millis(1_400));
+        // Going to sleep means the screen goes dark, so the overlay must not
+        // pop back up behind the ambient screen as it closes.
+        {
+            let mut runtime = state.runtime.lock().expect("runtime lock");
+            runtime.overlay_hidden = false;
+        }
         set_ambient(app, false);
         let mut runtime = state.runtime.lock().expect("runtime lock");
         runtime.qol.sleep = qol::SleepState::default();
@@ -2469,6 +2512,7 @@ fn start_ambient_loop(app: AppHandle) {
 
             if !late_on {
                 if !ambient_enabled && visible {
+                    eprintln!("ambient: closed because the master switch is off");
                     set_ambient(&app, false);
                 } else if ambient_enabled && idle_limit > 0 && idle >= idle_limit as u64 && !visible {
                     set_ambient_with(&app, true, true);
@@ -2477,12 +2521,14 @@ fn start_ambient_loop(app: AppHandle) {
                     && idle < 3
                     && now_ms() - ambient_opened_ms > 5_000
                 {
+                    eprintln!("ambient: closed by activity after the idle timer opened it");
                     set_ambient(&app, false);
                 }
             }
 
             #[cfg(windows)]
             if visible && hide_over_fullscreen && overlay::exclusive_fullscreen_active() {
+                eprintln!("ambient: closed as an exclusive-fullscreen app took the display");
                 set_ambient(&app, false);
             }
 
