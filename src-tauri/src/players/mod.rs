@@ -2,5 +2,6 @@
 //! is still read through `media`.
 
 pub mod cider;
+pub mod cider_push;
 
 pub use cider::CiderConfig;

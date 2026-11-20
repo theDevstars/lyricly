@@ -223,13 +223,43 @@ impl CiderClient {
     }
 }
 
-/// One snapshot from the Cider API, already shaped like the app's `Playback`.
+/// One snapshot from Cider, already shaped like the app's `Playback`.
+///
+/// Push first: the socket keeps position live. A REST read only happens when
+/// the socket is down, silent, or reports a track change.
 pub fn now_playing(config: &CiderConfig) -> Option<Playback> {
+    // Also stops the socket when the user switches Cider off.
+    crate::players::cider_push::ensure(config);
+
     if !config.enabled {
         return None;
     }
-    let client = CiderClient::new(&config.host, config.port, config.token.clone());
-    client.playback().ok()?.to_playback()
+
+    if let Some(push) = crate::players::cider_push::current() {
+        if push.take_refresh() {
+            if let Some(fresh) = rest_playback(config) {
+                push.update_track(&fresh);
+                return Some(fresh);
+            }
+        }
+        if let Some(playback) = push.playback() {
+            return Some(playback);
+        }
+    }
+
+    // Socket unavailable: poll the REST API instead.
+    let playback = rest_playback(config)?;
+    if let Some(push) = crate::players::cider_push::current() {
+        push.update_track(&playback);
+    }
+    Some(playback)
+}
+
+fn rest_playback(config: &CiderConfig) -> Option<Playback> {
+    CiderClient::new(&config.host, config.port, config.token.clone())
+        .playback()
+        .ok()?
+        .to_playback()
 }
 
 pub fn test_connection(config: &CiderConfig) -> CiderStatus {

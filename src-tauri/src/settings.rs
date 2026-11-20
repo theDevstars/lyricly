@@ -42,6 +42,12 @@ pub struct Settings {
     /// Genius text comes from its song pages, which is terms-sensitive:
     /// off unless the user explicitly agrees.
     pub lyrics_allow_genius_page_parsing: bool,
+    /// Lyric sources in the user's priority order.
+    pub lyrics_provider_order: Vec<String>,
+    pub lyrics_providers_enabled: Vec<String>,
+    pub lyrics_prefer_synced: bool,
+    pub lyrics_confidence_threshold: f32,
+    pub lyrics_auto_estimate: bool,
     /// Cider (cider.sh) as an additional player source.
     pub cider_enabled: bool,
     pub cider_host: String,
@@ -65,6 +71,17 @@ impl Default for Settings {
             hide_over_fullscreen: true,
             autostart: false,
             lyrics_allow_genius_page_parsing: false,
+            lyrics_provider_order: vec![
+                "cider".into(),
+                "local".into(),
+                "lrclib".into(),
+                "musixmatch".into(),
+                "genius".into(),
+            ],
+            lyrics_providers_enabled: vec!["cider".into(), "local".into(), "lrclib".into()],
+            lyrics_prefer_synced: true,
+            lyrics_confidence_threshold: 0.6,
+            lyrics_auto_estimate: true,
             cider_enabled: false,
             cider_host: "localhost".into(),
             cider_port: 10_767,

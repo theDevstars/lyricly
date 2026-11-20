@@ -23,6 +23,9 @@ export const reloadLyrics = (): Promise<void> => invoke('reload_lyrics');
 
 export const testCider = (): Promise<CiderStatus> => invoke<CiderStatus>('test_cider');
 
+export const testLyricsSource = (id: string): Promise<string> =>
+  invoke<string>('test_lyrics_source', { id });
+
 export const setCiderToken = (token: string): Promise<void> =>
   invoke('set_cider_token', { token });
 

@@ -1,9 +1,11 @@
 //! Timed lyrics: enhanced LRC parsing (per-word tags when present), a syllable
 //! based split for plain LRC, the provider pipeline, and LRCLIB lookups.
 
+pub mod auto_timing;
 pub mod cache;
 pub mod cider;
 pub mod genius;
+pub mod musixmatch;
 pub mod local;
 pub mod lrclib;
 pub mod matcher;
@@ -33,11 +35,20 @@ pub struct LyricLine {
     pub exact: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Lyrics {
     pub source: String,
     pub lines: Vec<LyricLine>,
+    /// Attribution the source requires, shown on the lyric view.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attribution: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timing: Option<Timing>,
+    #[serde(default)]
+    pub confidence: f32,
 }
 
 /// The track being looked up, independent of any provider.
@@ -303,6 +314,7 @@ pub fn parse_lrc(raw: &str, source: &str) -> Option<Lyrics> {
     Some(Lyrics {
         source: source.to_string(),
         lines,
+        ..Default::default()
     })
 }
 
@@ -331,7 +343,10 @@ impl Timing {
     }
 
     pub fn is_synced(&self) -> bool {
-        matches!(self, Timing::WordSynced | Timing::LineSynced)
+        matches!(
+            self,
+            Timing::WordSynced | Timing::LineSynced | Timing::Estimated
+        )
     }
 }
 
@@ -372,7 +387,7 @@ impl LyricsResult {
     /// Adapts a timed result to the engine's format. Unsynced and estimated
     /// results return `None` until `auto_timing` has run.
     pub fn to_engine(&self) -> Option<Lyrics> {
-        if !self.timing.is_synced() {
+        if self.timing == Timing::Unsynced {
             return None;
         }
 
@@ -444,6 +459,10 @@ impl LyricsResult {
         Some(Lyrics {
             source: self.source.clone(),
             lines,
+            attribution: self.attribution.clone(),
+            source_url: self.source_url.clone(),
+            timing: Some(self.timing),
+            confidence: self.confidence,
         })
     }
 }
@@ -552,6 +571,8 @@ pub struct PipelineConfig {
     pub enabled: Vec<String>,
     pub confidence_threshold: f32,
     pub prefer_synced: bool,
+    /// Estimate timing for plain lyrics instead of leaving them untimed.
+    pub auto_estimate: bool,
     pub timeout_ms: u64,
     pub retries: u32,
 }
@@ -568,6 +589,7 @@ impl Default for PipelineConfig {
             enabled: Vec::new(),
             confidence_threshold: 0.6,
             prefer_synced: true,
+            auto_estimate: true,
             timeout_ms: 4_000,
             retries: 1,
         }
@@ -587,7 +609,8 @@ pub fn cache_key(query: &TrackQuery) -> String {
 pub struct Pipeline {
     providers: Vec<Arc<dyn LyricsProvider>>,
     cache: Arc<cache::Cache>,
-    config: PipelineConfig,
+    /// Preferences can change while the app runs.
+    config: std::sync::RwLock<PipelineConfig>,
 }
 
 impl Pipeline {
@@ -599,27 +622,35 @@ impl Pipeline {
         Self {
             providers,
             cache,
-            config,
+            config: std::sync::RwLock::new(config),
         }
     }
 
-    pub fn config(&self) -> &PipelineConfig {
-        &self.config
+    pub fn config(&self) -> PipelineConfig {
+        self.config
+            .read()
+            .map(|config| config.clone())
+            .unwrap_or_default()
     }
 
-    fn ordered(&self) -> Vec<Arc<dyn LyricsProvider>> {
+    pub fn set_config(&self, next: PipelineConfig) {
+        if let Ok(mut config) = self.config.write() {
+            *config = next;
+        }
+    }
+
+    fn ordered(&self, config: &PipelineConfig) -> Vec<Arc<dyn LyricsProvider>> {
         let mut providers: Vec<Arc<dyn LyricsProvider>> = self
             .providers
             .iter()
             .filter(|provider| {
-                self.config.enabled.is_empty()
-                    || self.config.enabled.iter().any(|id| id == provider.id())
+                config.enabled.is_empty() || config.enabled.iter().any(|id| id == provider.id())
             })
             .cloned()
             .collect();
 
         providers.sort_by_key(|provider| {
-            self.config
+            config
                 .order
                 .iter()
                 .position(|id| id == provider.id())
@@ -641,7 +672,8 @@ impl Pipeline {
             };
         }
 
-        let providers = self.ordered();
+        let config = self.config();
+        let providers = self.ordered(&config);
         if providers.is_empty() {
             return PipelineOutcome {
                 result: None,
@@ -650,10 +682,10 @@ impl Pipeline {
             };
         }
 
-        let threshold = self.config.confidence_threshold;
-        let prefer_synced = self.config.prefer_synced;
-        let timeout = Duration::from_millis(self.config.timeout_ms);
-        let retries = self.config.retries;
+        let threshold = config.confidence_threshold;
+        let prefer_synced = config.prefer_synced;
+        let timeout = Duration::from_millis(config.timeout_ms);
+        let retries = config.retries;
 
         let mut pending = FuturesUnordered::new();
         for (index, provider) in providers.iter().cloned().enumerate() {
@@ -745,7 +777,10 @@ impl Pipeline {
             };
         }
 
-        let result = best.or(fallback).expect("checked above");
+        let mut result = best.or(fallback).expect("checked above");
+        if config.auto_estimate {
+            auto_timing::apply(&mut result, query.duration_ms);
+        }
         self.cache.put_positive(&key, &result);
 
         PipelineOutcome {
@@ -981,7 +1016,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn unsynced_result_is_kept_when_nothing_synced_exists() {
+    async fn unsynced_result_is_kept_when_estimation_is_off() {
         let providers = vec![mock(
             "plain",
             0,
@@ -989,12 +1024,36 @@ mod tests {
         )];
         let config = PipelineConfig {
             order: vec!["plain".into()],
+            auto_estimate: false,
             ..Default::default()
         };
 
         let outcome = pipeline(providers, config).resolve(&query()).await;
         let result = outcome.result.expect("unsynced fallback is still a result");
         assert_eq!(result.timing, Timing::Unsynced);
+    }
+
+    #[tokio::test]
+    async fn plain_results_get_estimated_timing() {
+        let providers = vec![mock(
+            "plain",
+            0,
+            MockOutcome::Ok { confidence: 0.9, timing: Timing::Unsynced },
+        )];
+        let config = PipelineConfig {
+            order: vec!["plain".into()],
+            auto_estimate: true,
+            ..Default::default()
+        };
+
+        let outcome = pipeline(providers, config).resolve(&query()).await;
+        let result = outcome.result.expect("estimated result");
+        assert_eq!(result.timing, Timing::Estimated);
+        assert!(result.lines[0].start_ms.is_some());
+        assert!(
+            result.to_engine().is_some(),
+            "estimated lyrics must reach the engine"
+        );
     }
 
     #[tokio::test]

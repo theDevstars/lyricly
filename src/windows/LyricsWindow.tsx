@@ -141,6 +141,12 @@ export function LyricsWindow({ snapshot }: LyricsWindowProps) {
         {snapshot.error && hasTrack && !snapshot.loading && (
           <div className="error-hint">{snapshot.error}</div>
         )}
+        {snapshot.lyrics && (
+          <div className="lyric-credit">
+            {snapshot.lyrics.attribution ?? `Lyrics from ${snapshot.lyrics.source}`}
+            {snapshot.lyrics.timing === 'estimated' && <em> · estimated timing</em>}
+          </div>
+        )}
       </div>
 
       {settingsOpen && (

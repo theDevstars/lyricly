@@ -28,6 +28,10 @@ export interface LyricLine {
 export interface Lyrics {
   source: string;
   lines: LyricLine[];
+  attribution?: string;
+  sourceUrl?: string;
+  timing?: 'wordSynced' | 'lineSynced' | 'estimated' | 'unsynced';
+  confidence?: number;
 }
 
 export interface WindowState {
@@ -58,6 +62,11 @@ export interface Settings {
   hideOverFullscreen: boolean;
   autostart: boolean;
   lyricsAllowGeniusPageParsing: boolean;
+  lyricsProviderOrder: string[];
+  lyricsProvidersEnabled: string[];
+  lyricsPreferSynced: boolean;
+  lyricsConfidenceThreshold: number;
+  lyricsAutoEstimate: boolean;
   ciderEnabled: boolean;
   ciderHost: string;
   ciderPort: number;

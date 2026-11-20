@@ -426,6 +426,7 @@ fn update_settings(app: AppHandle, patch: Settings) {
             runtime.settings.lyrics_allow_genius_page_parsing,
             Ordering::Relaxed,
         );
+        state.pipeline.set_config(pipeline_config(&runtime.settings));
         if let Ok(mut cider) = state.cider.write() {
             cider.enabled = runtime.settings.cider_enabled;
             cider.host = runtime.settings.cider_host.clone();
@@ -438,6 +439,57 @@ fn update_settings(app: AppHandle, patch: Settings) {
     apply_wallpaper_layer(&app, wallpaper);
     sync_tray(&app);
     emit_snapshot(&app);
+}
+
+/// Turns the stored preferences into pipeline behaviour.
+fn pipeline_config(settings: &Settings) -> lyrics::PipelineConfig {
+    let defaults = lyrics::PipelineConfig::default();
+    lyrics::PipelineConfig {
+        order: if settings.lyrics_provider_order.is_empty() {
+            defaults.order
+        } else {
+            settings.lyrics_provider_order.clone()
+        },
+        // An empty enabled list means "nothing", not "everything".
+        enabled: if settings.lyrics_providers_enabled.is_empty() {
+            vec!["__none__".into()]
+        } else {
+            settings.lyrics_providers_enabled.clone()
+        },
+        confidence_threshold: settings.lyrics_confidence_threshold.clamp(0.0, 1.0),
+        prefer_synced: settings.lyrics_prefer_synced,
+        auto_estimate: settings.lyrics_auto_estimate,
+        timeout_ms: defaults.timeout_ms,
+        retries: defaults.retries,
+    }
+}
+
+#[tauri::command]
+fn test_lyrics_source(app: AppHandle, id: String) -> String {
+    match id.as_str() {
+        "cider" => {
+            let shared = app.state::<Shared>().cider.clone();
+            let config = shared.read().map(|c| c.clone()).unwrap_or_default();
+            players::cider::test_connection(&config).message
+        }
+        "genius" => {
+            if credentials::read(credentials::GENIUS_TOKEN).is_some() {
+                "A Genius token is stored".into()
+            } else {
+                "No Genius token stored yet".into()
+            }
+        }
+        "musixmatch" => {
+            if credentials::read(credentials::MUSIXMATCH_KEY).is_some() {
+                "A Musixmatch key is stored".into()
+            } else {
+                "No Musixmatch key stored yet".into()
+            }
+        }
+        "lrclib" => "LRCLIB needs no key".into(),
+        "local" => "Local cache and files need no key".into(),
+        _ => "Unknown source".into(),
+    }
 }
 
 fn patch_autostart(app: &AppHandle) -> bool {
@@ -576,6 +628,9 @@ pub fn run() {
                 Arc::new(lyrics::cider::CiderLyricsProvider::new(cider.clone())),
                 Arc::new(lyrics::local::LocalProvider::new(cache.clone())),
                 Arc::new(lyrics::lrclib::LrclibProvider::new()),
+                Arc::new(lyrics::musixmatch::MusixmatchProvider::new(
+                    credentials::read(credentials::MUSIXMATCH_KEY),
+                )),
                 Arc::new(lyrics::genius::GeniusProvider::new(
                     credentials::read(credentials::GENIUS_TOKEN),
                     genius_parsing.clone(),
@@ -584,7 +639,7 @@ pub fn run() {
             let pipeline = Arc::new(lyrics::Pipeline::new(
                 providers,
                 cache.clone(),
-                lyrics::PipelineConfig::default(),
+                pipeline_config(&settings),
             ));
             let initial_playback = media::snapshot();
             let saved_window = settings.window.clone();
@@ -679,6 +734,7 @@ pub fn run() {
             set_ambient_mode,
             set_wallpaper_layer,
             reload_lyrics,
+            test_lyrics_source,
             test_cider,
             set_cider_token,
             open_preferences,

@@ -9,6 +9,7 @@ import {
   setCiderToken,
   setStyle,
   testCider,
+  testLyricsSource,
   updateSettings,
 } from '../lib/api';
 
@@ -18,7 +19,15 @@ interface PreferencesProps {
   onClose?: () => void;
 }
 
-type Tab = 'styles' | 'players' | 'overlay' | 'ambient';
+type Tab = 'styles' | 'sources' | 'players' | 'overlay' | 'ambient';
+
+const SOURCES = [
+  { id: 'cider', name: 'Cider / Apple Music', hint: 'Apple Music lyrics, word-synced when available' },
+  { id: 'local', name: 'Local cache & files', hint: 'Cached results and your own .lrc / .txt edits' },
+  { id: 'lrclib', name: 'LRCLIB', hint: 'Free and keyless' },
+  { id: 'musixmatch', name: 'Musixmatch', hint: 'Official API; needs your key' },
+  { id: 'genius', name: 'Genius', hint: 'Needs a token; page reading is opt-in' },
+] as const;
 
 export function Preferences({ snapshot, onClose }: PreferencesProps) {
   const [tab, setTab] = useState<Tab>('styles');
@@ -27,6 +36,7 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
   const [ciderToken, setCiderTokenDraft] = useState('');
   const [ciderStatus, setCiderStatus] = useState<CiderStatus | null>(null);
   const [testingCider, setTestingCider] = useState(false);
+  const [sourceResults, setSourceResults] = useState<Record<string, string>>({});
   // Held locally and saved on blur, so a settings round trip cannot fight typing.
   const [hostDraft, setHostDraft] = useState(snapshot.settings.ciderHost);
   const [portDraft, setPortDraft] = useState(String(snapshot.settings.ciderPort));
@@ -53,6 +63,42 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
     await setCiderToken('');
     setCiderTokenDraft('');
     setCiderStatus(null);
+  };
+
+  const sourceOrder = useMemo(() => {
+    const known = draft.lyricsProviderOrder ?? [];
+    const ordered = known.filter((id) => SOURCES.some((source) => source.id === id));
+    for (const source of SOURCES) {
+      if (!ordered.includes(source.id)) ordered.push(source.id);
+    }
+    return ordered;
+  }, [draft.lyricsProviderOrder]);
+
+  const moveSource = (id: string, delta: number) => {
+    const next = [...sourceOrder];
+    const index = next.indexOf(id);
+    const target = index + delta;
+    if (index < 0 || target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    commit({ lyricsProviderOrder: next });
+  };
+
+  const toggleSource = (id: string) => {
+    const enabled = draft.lyricsProvidersEnabled ?? [];
+    const next = enabled.includes(id)
+      ? enabled.filter((entry) => entry !== id)
+      : [...enabled, id];
+    commit({ lyricsProvidersEnabled: next });
+  };
+
+  const runSourceTest = async (id: string) => {
+    setSourceResults((current) => ({ ...current, [id]: 'Testing…' }));
+    try {
+      const result = await testLyricsSource(id);
+      setSourceResults((current) => ({ ...current, [id]: result }));
+    } catch (error) {
+      setSourceResults((current) => ({ ...current, [id]: String(error) }));
+    }
   };
 
   const commitCiderHost = () => {
@@ -114,6 +160,9 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
         <button type="button" className={tab === 'styles' ? 'on' : ''} onClick={() => setTab('styles')}>
           Styles
         </button>
+        <button type="button" className={tab === 'sources' ? 'on' : ''} onClick={() => setTab('sources')}>
+          Sources
+        </button>
         <button type="button" className={tab === 'players' ? 'on' : ''} onClick={() => setTab('players')}>
           Players
         </button>
@@ -172,6 +221,126 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
               </div>
             </div>
           ))}
+        </section>
+      )}
+
+      {tab === 'sources' && (
+        <section className="panel">
+          <h2>Lyrics sources</h2>
+          <p className="note">
+            Tried in this order. A result below the confidence threshold falls through to the next
+            source, and everything is cached locally only.
+          </p>
+
+          <ul className="source-list">
+            {sourceOrder.map((id, index) => {
+              const meta = SOURCES.find((source) => source.id === id);
+              const enabled = (draft.lyricsProvidersEnabled ?? []).includes(id);
+              return (
+                <li key={id} className={`source-row ${enabled ? '' : 'off'}`}>
+                  <div className="source-order">
+                    <button
+                      type="button"
+                      className="ghost-icon"
+                      disabled={index === 0}
+                      onClick={() => moveSource(id, -1)}
+                      title="Higher priority"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-icon"
+                      disabled={index === sourceOrder.length - 1}
+                      onClick={() => moveSource(id, 1)}
+                      title="Lower priority"
+                    >
+                      ↓
+                    </button>
+                  </div>
+                  <div className="source-text">
+                    <strong>{meta?.name ?? id}</strong>
+                    <small>{meta?.hint ?? ''}</small>
+                    {sourceResults[id] && <em className="source-result">{sourceResults[id]}</em>}
+                  </div>
+                  <button type="button" className="ghost" onClick={() => void runSourceTest(id)}>
+                    Test
+                  </button>
+                  <label className="switch">
+                    <input type="checkbox" checked={enabled} onChange={() => toggleSource(id)} />
+                    <i />
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+
+          <label className="field">
+            <span>Confidence threshold</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={Math.round(draft.lyricsConfidenceThreshold * 100)}
+              onChange={(event) =>
+                commit({ lyricsConfidenceThreshold: Number(event.target.value) / 100 })
+              }
+            />
+            <output>{draft.lyricsConfidenceThreshold.toFixed(2)}</output>
+          </label>
+
+          <div className="toggle-row">
+            <span>Prefer synced lyrics over plain</span>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={draft.lyricsPreferSynced}
+                onChange={(event) => commit({ lyricsPreferSynced: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
+
+          <div className="toggle-row">
+            <div>
+              <span>Auto-estimate timing for plain lyrics</span>
+              <small>Spreads lines across the track by syllable count and marks them estimated</small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={draft.lyricsAutoEstimate}
+                onChange={(event) => commit({ lyricsAutoEstimate: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
+
+          <div className="toggle-row">
+            <div>
+              <span>Allow Genius page parsing for plain lyrics</span>
+              <small>
+                Off by default. Reading Genius song pages goes against their terms of service and
+                may break at any time.
+              </small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={draft.lyricsAllowGeniusPageParsing}
+                onChange={(event) =>
+                  commit({ lyricsAllowGeniusPageParsing: event.target.checked })
+                }
+              />
+              <i />
+            </label>
+          </div>
+
+          <div className="panel-actions">
+            <button type="button" className="ghost danger" onClick={() => void reloadLyrics()}>
+              Clear lyrics cache
+            </button>
+          </div>
         </section>
       )}
 

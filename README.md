@@ -88,6 +88,28 @@ src/windows/               lyrics, ambient and preferences windows
 src/components/            canvas stage and gallery preview
 ```
 
+## Lyrics sources
+
+Sources are tried in the order set in Preferences → Sources; each can be switched off, and a
+result below the confidence threshold falls through to the next one.
+
+| Source | Access | Notes |
+| --- | --- | --- |
+| Cider / Apple Music | Cider's local API | Apple Music's own lyrics from the app you already run, word-synced when available. |
+| Local cache & files | Your disk | Cached results plus `.lrc` / `.txt` files you supply for a track. |
+| LRCLIB | Official, keyless | Free community database. |
+| Musixmatch | Official API, your key | Free plans return a truncated body and require the copyright line to be shown; Lyrica shows that line and never presents truncated text as complete. |
+| Genius | Official search, terms-sensitive text | The `/search` API is official, but lyrics are read from song pages only after an explicit opt-in, because that goes against Genius' terms of service and may break at any time. Page reads are limited to one per second with an honest User-Agent. |
+
+**Timing.** Word-synced and line-synced lyrics are used as-is. Plain lyrics can be given
+estimated timing — spread across the track by syllable count, after skipping the intro — and
+are marked *estimated* in the app. The nudge offset applies to every source.
+
+**Data.** Lyrics live in a local SQLite cache for personal display only. Nothing is uploaded
+anywhere, and no lyrics text is stored in this repository. Optional sources stay off until you
+enable them; you are responsible for the keys you add and for the terms of the services you
+use.
+
 ## Players
 
 **Spotify**, **Apple Music** and other Windows media apps come through the system media
@@ -106,9 +128,12 @@ artwork. Enable it under Preferences → Players.
 - Only Cider's current **v2** REST API (`/api/v2/client/info`, `/api/v2/playback`,
   `/api/v2/lyrics/current`) is implemented. A v1 server is detected and reported as such
   rather than guessed at; it stays usable through SMTC.
-- Playback state is polled rather than pushed: Cider's Socket.IO `API:Playback` channel
-  (`playbackStatus.nowPlayingItemDidChange`, `playbackStatus.playbackTimeDidChange`, …) is
-  documented but not yet subscribed to.
+- Position comes from Cider's Socket.IO `API:Playback` channel over WebSocket (Engine.IO v4):
+  `playbackStatus.playbackTimeDidChange` drives the clock about once a second,
+  `playbackStatus.playbackStateDidChange` drives play/pause, and a track change triggers a
+  single REST read for metadata. The socket reconnects with backoff; while it is down, or
+  silent for 5 s, Lyrica falls back to polling the REST API, so a dropped socket only costs
+  precision, never playback.
 - Lyrics come from `/api/v2/lyrics/current?words=true` when Apple Music has them, which can
   be word-synced, line-synced or plain. The provider is listed first among lyric sources but
   refuses results whose track does not match what is playing.
