@@ -1,6 +1,14 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { CiderStatus, LicenseStatus, Settings, Snapshot, SpotifyStatus } from '../types';
+import type {
+  CiderStatus,
+  LicenseStatus,
+  QolRule,
+  QolState,
+  Settings,
+  Snapshot,
+  SpotifyStatus,
+} from '../types';
 
 export const getState = (): Promise<Snapshot> => invoke<Snapshot>('get_state');
 
@@ -72,6 +80,29 @@ export const spotifyUnlink = (): Promise<SpotifyStatus> =>
 
 export const spotifyControl = (action: string, value?: string): Promise<void> =>
   invoke('spotify_control', { action, value: value ?? null });
+
+/// Remembers the nudge and style for the current song, artist or album.
+export const rememberSong = (scope: 'song' | 'artist' | 'album'): Promise<number> =>
+  invoke<number>('remember_song', { scope });
+
+export const forgetSong = (): Promise<number> => invoke<number>('forget_song');
+
+export const qolTestRule = (rule: QolRule): Promise<boolean> =>
+  invoke<boolean>('qol_test_rule', { rule });
+
+export const qolSample = (): Promise<QolState> => invoke<QolState>('qol_sample');
+
+export const sleepTimer = (minutes: number): Promise<void> =>
+  invoke('sleep_timer', { minutes });
+
+export const sleepPlaylistEnd = (armed: boolean): Promise<void> =>
+  invoke('sleep_playlist_end', { armed });
+
+export const setLightOverride = (mode: 'auto' | 'on' | 'off'): Promise<void> =>
+  invoke('set_light_override', { mode });
+
+export const reportFrameTime = (frameMs: number): Promise<void> =>
+  invoke('report_frame_time', { frameMs });
 
 export const onSpotify = (
   handler: (payload: { linked?: boolean; error?: string }) => void,

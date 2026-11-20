@@ -5,6 +5,7 @@ mod lyrics;
 mod media;
 mod overlay;
 mod players;
+mod qol;
 mod settings;
 mod tray;
 
@@ -52,6 +53,8 @@ pub struct Runtime {
     pub late_night: bool,
     /// An in-progress tap-to-sync run, if any.
     pub tap: Option<TapSession>,
+    /// Transient quality-of-life state (never persisted).
+    pub qol: QolRuntime,
 }
 
 /// Lines and recorded line starts for the track being tap-synced.
@@ -72,6 +75,50 @@ pub struct Shared {
     pub cider: Arc<RwLock<players::cider::CiderConfig>>,
     /// Last linked-account sample (Spotify today), read by the player poller.
     pub spotify: Arc<Mutex<SpotifyState>>,
+    /// Per-song nudge and style memory, persisted beside the settings file.
+    pub memory: Arc<Mutex<qol::SongMemory>>,
+}
+
+/// Transient quality-of-life state: what the rules asked for, how loaded the
+/// renderer is, and when the ambient screen should go to sleep. None of this is
+/// saved — the user's own settings stay untouched.
+#[derive(Default)]
+pub struct QolRuntime {
+    pub env: qol::Env,
+    pub actions: Vec<String>,
+    pub light_mode: bool,
+    pub notice: Option<String>,
+    pub sleep: qol::SleepState,
+    pub repeated: u32,
+    pub load: qol::LoadWatch,
+    pub override_light: Option<bool>,
+    pub capture_override: bool,
+    pub was_playing: bool,
+    pub quiet_ticks: u32,
+    pub signature: String,
+}
+
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct QolView {
+    enabled: bool,
+    light_mode: bool,
+    light_override: Option<bool>,
+    hide_overlays: bool,
+    dim_ambient: bool,
+    process: String,
+    fullscreen: bool,
+    on_battery: bool,
+    battery_saver: bool,
+    video_call: bool,
+    screen_share: bool,
+    notice: Option<String>,
+    sleep_until_ms: i64,
+    sleep_fading: bool,
+    repeated: u32,
+    active_actions: Vec<String>,
+    memory_size: usize,
+    windows_light: bool,
 }
 
 #[derive(serde::Serialize, Clone)]
@@ -88,6 +135,7 @@ struct Snapshot {
     stream_safe_error: Option<String>,
     late_night: bool,
     tap_sync: Option<TapStatus>,
+    qol: QolView,
 }
 
 #[derive(serde::Serialize, Clone)]
@@ -136,7 +184,34 @@ fn snapshot(state: &Shared) -> Snapshot {
         stream_safe_error: runtime.stream_safe_error.clone(),
         late_night: runtime.late_night,
         tap_sync: runtime.tap.as_ref().map(TapStatus::of),
+        qol: QolView {
+            enabled: runtime.settings.qol_enabled,
+            light_mode: runtime.qol.light_mode,
+            light_override: runtime.qol.override_light,
+            hide_overlays: runtime.qol.actions.iter().any(|action| action == "hideOverlays"),
+            dim_ambient: runtime.qol.actions.iter().any(|action| action == "warmAmbient"),
+            process: runtime.qol.env.process.clone(),
+            fullscreen: runtime.qol.env.fullscreen,
+            on_battery: runtime.qol.env.on_battery,
+            battery_saver: runtime.qol.env.battery_saver,
+            video_call: runtime.qol.env.video_call,
+            screen_share: runtime.qol.env.screen_share,
+            notice: runtime.qol.notice.clone(),
+            sleep_until_ms: runtime.qol.sleep.until_ms,
+            sleep_fading: runtime.qol.sleep.fading,
+            repeated: runtime.qol.repeated,
+            active_actions: runtime.qol.actions.clone(),
+            memory_size: state.memory.lock().map(|memory| memory.entries.len()).unwrap_or(0),
+            windows_light: runtime.settings.qol_theme_follow && windows_light_theme(),
+        },
     }
+}
+
+fn memory_path(app: &AppHandle) -> std::path::PathBuf {
+    app.path()
+        .app_data_dir()
+        .unwrap_or_else(|_| std::path::PathBuf::from("."))
+        .join("song-memory.json")
 }
 
 fn emit_snapshot(app: &AppHandle) {
@@ -1139,7 +1214,145 @@ fn nudge(app: AppHandle, delta_ms: i64) {
         runtime.settings.nudge_ms = (runtime.settings.nudge_ms + delta_ms).clamp(-5000, 5000);
         runtime.settings.save(&config_path(&app));
     }
+
+    // Nudging a song is a statement about that song: keep it.
+    let (playback, nudge_ms, remember) = {
+        let runtime = state.runtime.lock().expect("runtime lock");
+        (
+            runtime.playback.clone(),
+            runtime.settings.nudge_ms,
+            runtime.settings.qol_enabled && runtime.settings.qol_song_memory,
+        )
+    };
+    if remember && !playback.title.is_empty() {
+        if let Ok(mut memory) = state.memory.lock() {
+            memory.remember(&playback, "song", nudge_ms, None, now_ms());
+            memory.save(&memory_path(&app));
+        }
+    }
+
     emit_snapshot(&app);
+}
+
+#[tauri::command]
+fn remember_song(app: AppHandle, scope: String) -> Result<usize, String> {
+    let state = app.state::<Shared>();
+    let (playback, nudge_ms, style, enabled) = {
+        let runtime = state.runtime.lock().expect("runtime lock");
+        (
+            runtime.playback.clone(),
+            runtime.settings.nudge_ms,
+            runtime.settings.style.clone(),
+            runtime.settings.qol_enabled,
+        )
+    };
+
+    if playback.title.is_empty() {
+        return Err("nothing is playing".into());
+    }
+    if !enabled {
+        return Err("turn on Quality of life first".into());
+    }
+
+    let mut memory = state.memory.lock().map_err(|_| "memory busy".to_string())?;
+    memory.remember(&playback, &scope, nudge_ms, Some(&style), now_ms());
+    memory.save(&memory_path(&app));
+    let size = memory.entries.len();
+    drop(memory);
+
+    emit_snapshot(&app);
+    Ok(size)
+}
+
+#[tauri::command]
+fn forget_song(app: AppHandle) -> usize {
+    let state = app.state::<Shared>();
+    let playback = {
+        let runtime = state.runtime.lock().expect("runtime lock");
+        runtime.playback.clone()
+    };
+
+    let mut memory = state.memory.lock().expect("memory lock");
+    let removed = memory.forget(&playback);
+    memory.save(&memory_path(&app));
+    drop(memory);
+
+    emit_snapshot(&app);
+    removed
+}
+
+/// Checks a rule against the desktop as it is right now, for the test button.
+#[tauri::command]
+fn qol_test_rule(rule: qol::Rule) -> bool {
+    let env = qol::sample();
+    qol::rule_matches(&rule, &env)
+}
+
+#[tauri::command]
+fn qol_sample() -> qol::Env {
+    qol::sample()
+}
+
+#[tauri::command]
+fn sleep_timer(app: AppHandle, minutes: u32) {
+    let state = app.state::<Shared>();
+    let mut runtime = state.runtime.lock().expect("runtime lock");
+    runtime.qol.sleep.until_ms = if minutes == 0 {
+        0
+    } else {
+        now_ms() + minutes as i64 * 60_000
+    };
+    runtime.qol.sleep.fading = false;
+    drop(runtime);
+    emit_snapshot(&app);
+}
+
+#[tauri::command]
+fn sleep_playlist_end(app: AppHandle, armed: bool) {
+    let state = app.state::<Shared>();
+    let mut runtime = state.runtime.lock().expect("runtime lock");
+    runtime.qol.sleep.after_playlist = armed;
+    runtime.qol.quiet_ticks = 0;
+    drop(runtime);
+    emit_snapshot(&app);
+}
+
+#[tauri::command]
+fn set_light_override(app: AppHandle, mode: String) {
+    let state = app.state::<Shared>();
+    let mut runtime = state.runtime.lock().expect("runtime lock");
+    runtime.qol.override_light = match mode.as_str() {
+        "on" => Some(true),
+        "off" => Some(false),
+        _ => None,
+    };
+    runtime.qol.notice = None;
+    let light = runtime.qol.override_light.unwrap_or(false);
+    runtime.qol.light_mode = light;
+    drop(runtime);
+    emit_snapshot(&app);
+}
+
+/// The renderer reports its frame time; a run of slow frames switches Light
+/// mode on and says why.
+#[tauri::command]
+fn report_frame_time(app: AppHandle, frame_ms: f32) {
+    let state = app.state::<Shared>();
+    let tripped = {
+        let mut runtime = state.runtime.lock().expect("runtime lock");
+        if !runtime.settings.qol_enabled || runtime.settings.qol_light_mode != "auto" {
+            return;
+        }
+        let tripped = runtime.qol.load.report(frame_ms);
+        if tripped && !runtime.qol.light_mode && runtime.qol.override_light.is_none() {
+            runtime.qol.light_mode = true;
+            runtime.qol.notice = Some("Light mode · frame time over budget".into());
+        }
+        tripped
+    };
+    if tripped {
+        emit_snapshot(&app);
+    }
 }
 
 #[tauri::command]
@@ -1629,12 +1842,14 @@ pub fn run() {
                     stream_safe_error: None,
                     late_night: false,
                     tap: None,
+                    qol: QolRuntime::default(),
                 }),
                 cache,
                 pipeline,
                 genius_parsing,
                 cider,
                 spotify: Arc::new(Mutex::new(SpotifyState::default())),
+                memory: Arc::new(Mutex::new(qol::SongMemory::load(&memory_path(app.handle())))),
             });
 
             let initial_menu = tray_menu(&handle)?;
@@ -1768,6 +1983,14 @@ pub fn run() {
             spotify_link,
             spotify_unlink,
             spotify_control,
+            remember_song,
+            forget_song,
+            qol_test_rule,
+            qol_sample,
+            sleep_timer,
+            sleep_playlist_end,
+            set_light_override,
+            report_frame_time,
             license_status,
             activate_license,
             deactivate_license,
@@ -1829,7 +2052,25 @@ fn start_poller(app: AppHandle) {
             let mut runtime = state.runtime.lock().expect("runtime lock");
 
             let key = if playback.is_active() { playback.key() } else { String::new() };
+            // A backwards jump inside the same track means the song restarted.
+            if !key.is_empty() && key == runtime.track_key {
+                let previous = runtime.playback.position_ms;
+                if previous > 5_000 && playback.position_ms + 4_000 < previous {
+                    runtime.qol.repeated = runtime.qol.repeated.saturating_add(1);
+                }
+            }
             if key != runtime.track_key {
+                runtime.qol.repeated = 0;
+                // Per-song memory: this track's nudge and style (or its album's,
+                // or its artist's) come back by themselves.
+                if !key.is_empty() && runtime.settings.qol_enabled && runtime.settings.qol_song_memory {
+                    if let Some(entry) = state.memory.lock().ok().and_then(|memory| memory.resolve(&playback)) {
+                        runtime.settings.nudge_ms = entry.nudge_ms;
+                        if let Some(style) = entry.style {
+                            runtime.settings.style = style;
+                        }
+                    }
+                }
                 runtime.track_key = key.clone();
                 runtime.lyrics = None;
                 runtime.error = None;
@@ -1913,6 +2154,184 @@ fn style_label(id: &str) -> String {
         .find(|(style_id, _)| *style_id == id)
         .map(|(_, name)| (*name).to_string())
         .unwrap_or_else(|| id.to_string())
+}
+
+/// Reads the Windows light/dark choice; the app UI follows it when asked to.
+fn windows_light_theme() -> bool {
+    #[cfg(windows)]
+    {
+        use winreg::enums::HKEY_CURRENT_USER;
+        use winreg::RegKey;
+        RegKey::predef(HKEY_CURRENT_USER)
+            .open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize")
+            .and_then(|key| key.get_value::<u32, _>("AppsUseLightTheme"))
+            .map(|value| value == 1)
+            .unwrap_or(false)
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
+/// One evaluation of the rules and the timers. Runs on the ambient ticker, so
+/// nothing here starts a thread or wakes the GPU.
+fn qol_tick(app: &AppHandle) {
+    let state = app.state::<Shared>();
+    let (
+        enabled,
+        rules,
+        allow,
+        deny,
+        sleep_minutes,
+        light_setting,
+        theme_follow,
+        user_stream_safe,
+        playing,
+    ) = {
+        let runtime = state.runtime.lock().expect("runtime lock");
+        let settings = &runtime.settings;
+        (
+            settings.qol_enabled,
+            settings.qol_rules.clone(),
+            settings.qol_allowlist.clone(),
+            settings.qol_denylist.clone(),
+            settings.qol_sleep_minutes,
+            settings.qol_light_mode.clone(),
+            settings.qol_theme_follow,
+            settings.stream_safe,
+            runtime.playback.status == "playing",
+        )
+    };
+
+    if !enabled {
+        let restore = {
+            let mut runtime = state.runtime.lock().expect("runtime lock");
+            let was_overridden = runtime.qol.capture_override;
+            runtime.qol.actions.clear();
+            runtime.qol.light_mode = false;
+            runtime.qol.capture_override = false;
+            runtime.qol.sleep = qol::SleepState::default();
+            was_overridden
+        };
+        if restore {
+            let _ = apply_stream_safe(app, user_stream_safe);
+        }
+        return;
+    }
+
+    let env = qol::sample();
+    let mut actions = qol::active_actions(&rules, &env);
+    if qol::should_hide_over(&env, &allow, &deny) && !actions.iter().any(|a| a == "hideOverlays") {
+        actions.push("hideOverlays".into());
+    }
+
+    let auto_light = light_setting == "on"
+        || (light_setting == "auto"
+            && (env.battery_saver
+                || actions.iter().any(|action| action == "lightMode")
+                || state
+                    .runtime
+                    .lock()
+                    .map(|runtime| runtime.qol.load.tripped)
+                    .unwrap_or(false)));
+
+    let now = now_ms();
+    let mut capture_desired: Option<bool> = None;
+    let mut pause_ambient = false;
+    let mut fade_now = false;
+    let mut changed = false;
+
+    {
+        let mut runtime = state.runtime.lock().expect("runtime lock");
+        runtime.qol.env = env.clone();
+        runtime.qol.actions = actions.clone();
+
+        if sleep_minutes == 0 {
+            runtime.qol.sleep.until_ms = 0;
+        } else if runtime.qol.sleep.until_ms == 0 {
+            runtime.qol.sleep.until_ms = now + sleep_minutes as i64 * 60_000;
+        }
+
+        if playing {
+            runtime.qol.quiet_ticks = 0;
+        } else if runtime.qol.was_playing && runtime.qol.sleep.after_playlist {
+            runtime.qol.quiet_ticks = runtime.qol.quiet_ticks.saturating_add(1);
+        }
+        runtime.qol.was_playing = playing;
+
+        let deadline = qol::sleep_reached(&runtime.qol.sleep, now);
+        let playlist_done = runtime.qol.sleep.after_playlist && runtime.qol.quiet_ticks >= 2;
+        if deadline || playlist_done {
+            // One shot: the timer and the queue rule both clear themselves.
+            runtime.qol.sleep.fading = true;
+            runtime.qol.sleep.after_playlist = false;
+            runtime.settings.qol_sleep_minutes = 0;
+            runtime.settings.save(&config_path(app));
+            fade_now = true;
+        }
+
+        let light = runtime.qol.override_light.unwrap_or(auto_light);
+        if light && !runtime.qol.light_mode && runtime.qol.override_light.is_none() {
+            runtime.qol.notice = Some(if env.battery_saver {
+                "Light mode · battery saver".into()
+            } else {
+                "Light mode · this machine is busy".into()
+            });
+        } else if !light {
+            runtime.qol.notice = None;
+        }
+        runtime.qol.light_mode = light;
+
+        let want_capture = actions.iter().any(|action| action == "streamingMode");
+        if want_capture != runtime.qol.capture_override {
+            runtime.qol.capture_override = want_capture;
+            capture_desired = Some(want_capture || user_stream_safe);
+        }
+
+        pause_ambient = actions.iter().any(|action| action == "pauseAmbient");
+
+        let signature = format!(
+            "{:?}|{light}|{}|{}|{}|{}|{}|{}",
+            actions,
+            env.fullscreen,
+            env.process,
+            runtime.qol.sleep.until_ms,
+            runtime.qol.repeated,
+            theme_follow && windows_light_theme(),
+            runtime.qol.notice.clone().unwrap_or_default(),
+        );
+        changed = signature != runtime.qol.signature;
+        runtime.qol.signature = signature;
+    }
+
+    if let Some(hidden) = capture_desired {
+        let _ = apply_stream_safe(app, hidden);
+    }
+
+    if pause_ambient {
+        let visible = ambient_window(app)
+            .map(|window| window.is_visible().unwrap_or(false))
+            .unwrap_or(false);
+        if visible {
+            set_ambient(app, false);
+        }
+    }
+
+    if fade_now {
+        let _ = app.emit("lyrica:ambient-sleep", 1_400u64);
+        std::thread::sleep(Duration::from_millis(1_400));
+        set_ambient(app, false);
+        let mut runtime = state.runtime.lock().expect("runtime lock");
+        runtime.qol.sleep = qol::SleepState::default();
+        runtime.qol.quiet_ticks = 0;
+        drop(runtime);
+        changed = true;
+    }
+
+    if changed {
+        emit_snapshot(app);
+    }
 }
 
 fn start_ambient_loop(app: AppHandle) {
@@ -2012,6 +2431,8 @@ fn start_ambient_loop(app: AppHandle) {
             if visible && hide_over_fullscreen && overlay::exclusive_fullscreen_active() {
                 set_ambient(&app, false);
             }
+
+            qol_tick(&app);
         }
     });
 }

@@ -3,6 +3,10 @@ import type { Snapshot } from '../types';
 import type { LyricStyle, StyleState } from '../styles/types';
 import { activeLineIndex, playbackPosition, wordAt } from '../lib/timing';
 import { resolvePalette } from '../lib/colors';
+import { reportFrameTime } from '../lib/api';
+
+/// Light mode asks for 30 fps, so a frame is skipped when the last one is young.
+const LIGHT_FRAME_MS = 32;
 
 interface StyleCanvasProps {
   snapshot: Snapshot;
@@ -43,12 +47,27 @@ export function StyleCanvas({ snapshot, style, className }: StyleCanvasProps) {
 
   useEffect(() => {
     let frame = 0;
+    let lastDraw = 0;
+    let lastReport = performance.now();
 
     const draw = () => {
       frame = requestAnimationFrame(draw);
 
       const canvas = canvasRef.current;
       if (!canvas) return;
+
+      const now = performance.now();
+      const light = snapshotRef.current.qol?.lightMode;
+      if (light && now - lastDraw < LIGHT_FRAME_MS) return;
+
+      // One report a second is enough to notice a machine that cannot cope.
+      if (now - lastReport > 1000) {
+        if (snapshotRef.current.qol?.enabled) {
+          void reportFrameTime(Math.round(now - lastDraw));
+        }
+        lastReport = now;
+      }
+      lastDraw = now;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 

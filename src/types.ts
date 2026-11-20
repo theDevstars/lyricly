@@ -115,7 +115,50 @@ export interface Settings {
   spotifyAccount: string;
   spotifyProduct: string;
   spotifyExpiresAtMs: number;
+  qolEnabled: boolean;
+  qolSongMemory: boolean;
+  qolSmartHide: boolean;
+  qolHidePausedSeconds: number;
+  qolNoLyricsPill: boolean;
+  qolInstrumentalDots: boolean;
+  qolHideOnRepeat: boolean;
+  qolRules: QolRule[];
+  qolLightMode: string;
+  qolThemeFollow: boolean;
+  qolSleepMinutes: number;
+  qolAllowlist: string[];
+  qolDenylist: string[];
   window: WindowState;
+}
+
+export interface QolRule {
+  id: string;
+  enabled: boolean;
+  condition: string;
+  value: string;
+  action: string;
+}
+
+/** What the rules and the renderer think is going on right now. */
+export interface QolState {
+  enabled: boolean;
+  lightMode: boolean;
+  lightOverride: boolean | null;
+  hideOverlays: boolean;
+  dimAmbient: boolean;
+  process: string;
+  fullscreen: boolean;
+  onBattery: boolean;
+  batterySaver: boolean;
+  videoCall: boolean;
+  screenShare: boolean;
+  notice: string | null;
+  sleepUntilMs: number;
+  sleepFading: boolean;
+  repeated: number;
+  activeActions: string[];
+  memorySize: number;
+  windowsLight: boolean;
 }
 
 export interface SpotifyStatus {
@@ -140,6 +183,7 @@ export interface Snapshot {
   error: string | null;
   streamSafe: boolean;
   streamSafeError: string | null;
+  qol: QolState;
   lateNight: boolean;
   tapSync: { active: boolean; recorded: number; total: number } | null;
 }

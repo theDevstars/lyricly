@@ -1303,3 +1303,194 @@ body[data-window='license'] {
 }
 
 .license-error { margin: 0; font-size: 12px; color: #ff5c7a; }
+
+/* ------------------------------------------------------- quality of life */
+
+.stage.qol-hidden .style-canvas {
+  opacity: 0;
+}
+
+.style-canvas {
+  transition: opacity 0.6s ease;
+}
+
+.qol-pill {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--panel-border);
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.qol-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 30px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.qol-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: qol-breathe 2.4s ease-in-out infinite;
+}
+
+.qol-dots i:nth-child(2) {
+  animation-delay: 0.4s;
+}
+
+.qol-dots i:nth-child(3) {
+  animation-delay: 0.8s;
+}
+
+@keyframes qol-breathe {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateY(-3px);
+  }
+}
+
+.qol-note {
+  position: absolute;
+  top: 58px;
+  right: 18px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(12, 13, 17, 0.9);
+  border: 1px solid var(--panel-border);
+  font-size: 12px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.remember {
+  position: relative;
+}
+
+.remember-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  min-width: 210px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(18px);
+}
+
+.remember-menu button {
+  text-align: left;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  font-size: 12.5px;
+}
+
+.remember-menu button:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.remember-menu button.danger {
+  color: #ff8b9b;
+}
+
+.qol-rule {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.2fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 0;
+  border-top: 1px solid var(--panel-border);
+}
+
+.qol-rule select,
+.qol-rule input[type='text'] {
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.qol-rule .qol-value:disabled {
+  opacity: 0.35;
+}
+
+.qol-env {
+  font-variant-numeric: tabular-nums;
+}
+
+.ambient-frame {
+  transition: opacity 1.4s ease, filter 1.4s ease;
+}
+
+.ambient-frame.qol-fade {
+  opacity: 0;
+}
+
+.ambient-frame.qol-warm {
+  filter: brightness(0.72) saturate(0.85) sepia(0.16);
+}
+
+/* Light mode drops the expensive compositing and keeps the layout. */
+html[data-light='on'] .panel,
+html[data-light='on'] .remember-menu,
+html[data-light='on'] .settings-overlay > * {
+  backdrop-filter: none !important;
+}
+
+html[data-light='on'] .style-canvas {
+  filter: none !important;
+}
+
+html[data-light='on'] .qol-dots i {
+  animation-duration: 3.6s;
+}
+
+/* Following the Windows theme repaints the app chrome, not the lyric styles. */
+html[data-windows-light='on'] {
+  --panel: rgba(248, 249, 252, 0.94);
+  --panel-border: rgba(12, 15, 22, 0.12);
+  --text: #14161c;
+  --muted: rgba(20, 22, 28, 0.62);
+  color-scheme: light;
+}
+
+html[data-windows-light='on'] body[data-window='prefs'] {
+  background: #eef0f5;
+}
+
+html[data-windows-light='on'] .lyrics-frame {
+  background: rgba(250, 251, 253, var(--panel-opacity, 0.9));
+  box-shadow: 0 20px 50px rgba(20, 24, 34, 0.18);
+}
+
+html[data-windows-light='on'] .qol-note,
+html[data-windows-light='on'] .qol-pill {
+  background: rgba(255, 255, 255, 0.86);
+}

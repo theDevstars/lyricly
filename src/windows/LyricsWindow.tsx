@@ -5,7 +5,8 @@ import type { Snapshot } from '../types';
 import { getStyle, STYLES } from '../styles/registry';
 import { StyleCanvas } from '../components/StyleCanvas';
 import { Preferences } from './Preferences';
-import { nudge, setStyle, togglePlayPause } from '../lib/api';
+import { forgetSong, nudge, rememberSong, setStyle, togglePlayPause } from '../lib/api';
+import { useSmartHide } from '../qol/useSmartHide';
 
 interface LyricsWindowProps {
   snapshot: Snapshot;
@@ -14,11 +15,34 @@ interface LyricsWindowProps {
 const PLAYERS = ['Spotify', 'Apple Music'];
 
 export function LyricsWindow({ snapshot }: LyricsWindowProps) {
+  // The QoL panel lives inside Preferences; nothing else needs a context.
   const style = getStyle(snapshot.settings.style);
   const [hovered, setHovered] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [rememberOpen, setRememberOpen] = useState(false);
+  const [rememberNote, setRememberNote] = useState<string | null>(null);
   const playing = snapshot.playback.status === 'playing';
   const hasTrack = Boolean(snapshot.playback.title);
+  const smart = useSmartHide(snapshot);
+  const hideLyrics = smart.hidden || smart.paused;
+
+  const remember = async (scope: 'song' | 'artist' | 'album') => {
+    setRememberOpen(false);
+    try {
+      const size = await rememberSong(scope);
+      setRememberNote(`Remembered for this ${scope} · ${size} saved`);
+    } catch (error) {
+      setRememberNote(String(error));
+    }
+    window.setTimeout(() => setRememberNote(null), 2600);
+  };
+
+  const forget = async () => {
+    setRememberOpen(false);
+    const removed = await forgetSong().catch(() => 0);
+    setRememberNote(removed > 0 ? 'Forgotten' : 'Nothing was remembered here');
+    window.setTimeout(() => setRememberNote(null), 2400);
+  };
 
   useEffect(() => {
     const header = document.querySelector('.topbar');
@@ -93,6 +117,34 @@ export function LyricsWindow({ snapshot }: LyricsWindowProps) {
             </button>
           </div>
 
+          <div className="remember">
+            <button
+              type="button"
+              className={`ghost-icon ${rememberOpen ? 'on' : ''}`}
+              onClick={() => setRememberOpen((open) => !open)}
+              disabled={!hasTrack || !snapshot.settings.qolEnabled}
+              title="Remember the style and offset"
+            >
+              ★
+            </button>
+            {rememberOpen && (
+              <div className="remember-menu">
+                <button type="button" onClick={() => void remember('song')}>
+                  Remember for this song
+                </button>
+                <button type="button" onClick={() => void remember('artist')}>
+                  Remember for this artist
+                </button>
+                <button type="button" onClick={() => void remember('album')}>
+                  Remember for this album
+                </button>
+                <button type="button" className="danger" onClick={() => void forget()}>
+                  Forget this song
+                </button>
+              </div>
+            )}
+          </div>
+
           <select
             className="style-picker"
             value={snapshot.settings.style}
@@ -129,8 +181,19 @@ export function LyricsWindow({ snapshot }: LyricsWindowProps) {
         </div>
       </div>
 
-      <div className="stage">
+      <div className={`stage ${hideLyrics ? 'qol-hidden' : ''}`}>
         <StyleCanvas snapshot={snapshot} style={style} className="style-canvas" />
+        {!hideLyrics && smart.instrumental && snapshot.settings.qolInstrumentalDots && (
+          <div className="qol-dots" aria-hidden>
+            <i />
+            <i />
+            <i />
+          </div>
+        )}
+        {smart.noLyrics && snapshot.settings.qolNoLyricsPill && (
+          <div className="qol-pill">No lyrics for “{snapshot.playback.title}”</div>
+        )}
+        {rememberNote && <div className="qol-note">{rememberNote}</div>}
         {!hasTrack && (
           <div className="empty-hint">
             <p>Play a track in Spotify or Apple Music</p>

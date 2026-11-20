@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CiderStatus, Settings, Snapshot, SpotifyStatus } from '../types';
 import { GROUPS, getStyle, STYLES, stylesIn } from '../styles/registry';
 import { StylePreview } from '../components/StylePreview';
+import { QolPanel } from '../qol/QolPanel';
 import {
   quitApp,
   reloadLyrics,
@@ -28,7 +29,7 @@ interface PreferencesProps {
   onClose?: () => void;
 }
 
-type Tab = 'styles' | 'sources' | 'players' | 'overlay' | 'ambient';
+type Tab = 'styles' | 'sources' | 'players' | 'overlay' | 'ambient' | 'qol';
 
 /// Shown in place of a status before the first request comes back.
 const emptySpotify: SpotifyStatus = {
@@ -266,6 +267,9 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
         </button>
         <button type="button" className={tab === 'ambient' ? 'on' : ''} onClick={() => setTab('ambient')}>
           Ambient
+        </button>
+        <button type="button" className={tab === 'qol' ? 'on' : ''} onClick={() => setTab('qol')}>
+          Quality of life
         </button>
         {onClose && (
           <button type="button" className="ghost tabs-close" onClick={onClose}>
@@ -1002,6 +1006,8 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
           </div>
         </section>
       )}
+
+      {tab === 'qol' && <QolPanel snapshot={snapshot} commit={commit} />}
 
       <footer className="prefs-footer">
         <span>{STYLES.length} styles</span>

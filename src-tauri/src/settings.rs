@@ -1,7 +1,45 @@
 //! Persisted preferences, stored as JSON in the app config directory.
 
+use crate::qol;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+
+/// Rules that make the app quieter without being configured: games and
+/// fullscreen video win the screen, meetings pause the ambient layer, and a
+/// laptop on battery starts in Light mode. The late-evening schedule ships
+/// switched off, because dimming someone's screen at 22:00 is a choice.
+fn default_rules() -> Vec<qol::Rule> {
+    vec![
+        qol::Rule {
+            id: "fullscreen-hide".into(),
+            enabled: true,
+            condition: "fullscreen".into(),
+            value: String::new(),
+            action: "hideOverlays".into(),
+        },
+        qol::Rule {
+            id: "call-pause-ambient".into(),
+            enabled: true,
+            condition: "videoCall".into(),
+            value: String::new(),
+            action: "pauseAmbient".into(),
+        },
+        qol::Rule {
+            id: "battery-light".into(),
+            enabled: true,
+            condition: "battery".into(),
+            value: String::new(),
+            action: "lightMode".into(),
+        },
+        qol::Rule {
+            id: "evening-warm".into(),
+            enabled: false,
+            condition: "time".into(),
+            value: "22:00-07:00".into(),
+            action: "warmAmbient".into(),
+        },
+    ]
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -102,6 +140,26 @@ pub struct Settings {
     pub cider_port: u16,
     /// Use Cider's API for position/duration even when SMTC would do.
     pub cider_prefer_api: bool,
+    /// Quality of life. One master switch, then one switch per behaviour.
+    pub qol_enabled: bool,
+    pub qol_song_memory: bool,
+    pub qol_smart_hide: bool,
+    /// Hide the lyrics after this many seconds paused; 0 disables.
+    pub qol_hide_paused_seconds: u32,
+    pub qol_no_lyrics_pill: bool,
+    pub qol_instrumental_dots: bool,
+    pub qol_hide_on_repeat: bool,
+    /// Condition -> action rules, evaluated on the ambient ticker.
+    pub qol_rules: Vec<qol::Rule>,
+    /// "auto" (battery saver or slow frames), "on" or "off".
+    pub qol_light_mode: String,
+    pub qol_theme_follow: bool,
+    /// Stop the ambient screen after this many minutes; 0 disables.
+    pub qol_sleep_minutes: u32,
+    /// Fullscreen apps that are allowed to keep the overlay (opted in).
+    pub qol_allowlist: Vec<String>,
+    /// Fullscreen apps that always send the overlay away.
+    pub qol_denylist: Vec<String>,
     pub window: WindowState,
 }
 
@@ -168,6 +226,19 @@ impl Default for Settings {
             cider_host: "localhost".into(),
             cider_port: 10_767,
             cider_prefer_api: true,
+            qol_enabled: true,
+            qol_song_memory: true,
+            qol_smart_hide: true,
+            qol_hide_paused_seconds: 12,
+            qol_no_lyrics_pill: true,
+            qol_instrumental_dots: true,
+            qol_hide_on_repeat: false,
+            qol_rules: default_rules(),
+            qol_light_mode: "auto".into(),
+            qol_theme_follow: true,
+            qol_sleep_minutes: 0,
+            qol_allowlist: Vec::new(),
+            qol_denylist: Vec::new(),
             window: WindowState::default(),
         }
     }

@@ -265,6 +265,58 @@ Apple Music's now-playing state comes from its media session, or from Cider's lo
 
 Apple's MusicKit JS unlocks the *library* side (playlists, recently played, ISRC lookups, rating a song), not now-playing. It needs a developer token: an ES256 JWT signed with your Apple Music key, which must be minted by a server and must never be shipped inside the app. That server is not part of this release, so Apple Music here stays read-only through the media session. Nothing is stubbed to look finished: there is no Apple connect button yet.
 
+## Quality of life
+
+Everything in **Preferences → Quality of life** is optional and off the hot path: one desktop check every two seconds, on the ticker the ambient screen already owned. Turn the master switch off and the app behaves exactly as before.
+
+### Per-song memory
+
+A nudge made on a song is saved for that song; the ★ button in the window also remembers the style, and can save it for the artist or the album instead. Playback looks the track up by title, artist and duration — never by app — so the same memory follows a track between Spotify, Cider and Apple Music. Artist and album memories supply what a song does not have; the song's own nudge always wins. The file is `song-memory.json` in the app data folder, capped at 4,000 entries with the oldest dropped first.
+
+### Rules
+
+A rule is one condition and one action:
+
+| Condition | Matches when |
+| --- | --- |
+| fullscreen | a borderless, monitor-sized window owned by another process is in front |
+| app | a named process is in front (comma separated, `.exe` optional) |
+| battery | the laptop is not on AC |
+| videoCall | Teams, Zoom, Webex, GoToMeeting or Discord is in front |
+| screenShare | a meeting app or a recorder (OBS, Streamlabs, XSplit) is in front |
+| time | the local clock is inside `HH:MM-HH:MM`, wrapping past midnight |
+
+Actions: hide the overlay, use Light mode, pause the ambient screen, switch Streaming mode on, or dim and warm the ambient screen. Every matching rule applies, so conditions compose. **Test** evaluates a rule against the desktop as it is at that moment. Three rules ship enabled (fullscreen hides, a call pauses the ambient screen, battery starts Light mode); the 22:00–07:00 warm schedule ships switched off, because dimming someone's screen at ten is a choice, not a default.
+
+Screen sharing is inferred from which app owns the screen — the share runs inside the meeting process or the recorder. It cannot see a browser tab sharing through Meet, and the app does not pretend to.
+
+### Schedules and theme
+
+Time windows are just `time` rules, so "warm and dim after 22:00" is one rule and "Light mode at 09:00" is another. **Follow the Windows theme** reads `AppsUseLightTheme` and repaints the app chrome; lyric styles keep their own palettes, since a style is a look, not a theme.
+
+### Smart hide
+
+- Paused for the configured number of seconds (12 by default) fades the lyrics out; resuming fades them back.
+- A track playing with no lyrics shows a quiet "No lyrics" pill rather than an empty stage.
+- A gap of more than 4.5 seconds between lines shows three slow dots, the app's own reading of an instrumental.
+- With **Hide when a song loops** on, a track that restarts is not drawn again.
+
+### Light mode
+
+30 fps (frames under 32 ms are skipped), no backdrop blur, no bloom, and the canvas reports its frame time once a second. Five slow frames in a row (26 ms or more) trip it, and one healthy frame clears it. It also follows battery saver, and any rule can ask for it. The setting is `auto`, `on` or `off`, so an automatic decision is always overridable. The notice in the panel says why it is on.
+
+### Sleep timer
+
+30, 60 or 90 minutes, or "when the queue ends". The ambient screen fades over 1.4 seconds and closes; playback is never touched, and the timer clears itself after firing.
+
+### Games and fullscreen
+
+A fullscreen app always sends the overlay away, matching the existing fullscreen rule. A process listed under **Draw over these** opts in and keeps the overlay anyway; one under **Never draw over these** is respected even when its window is not fullscreen. Both lists are process names without `.exe`.
+
+### What this pass does not do
+
+The app has no Rim Light FFT, no per-display profiles and no 3D style group, so Light mode cannot pause or thin those: it lowers the frame rate and drops compositing instead. Light mode is per renderer, not per style. Detection is Windows-process based; a browser tab, a virtual machine or a game with an unusual fullscreen mode can still be misread.
+
 ## Notes
 
 - The updater is registered but has no endpoints or signing key configured yet; publishing updates

@@ -9,11 +9,17 @@ import { AmbientWindow } from './windows/AmbientWindow';
 import { LateNightWindow } from './windows/LateNightWindow';
 import { LicenseDialog } from './windows/LicenseDialog';
 import { MainWindow } from './window/MainWindow';
+import { useLightMode } from './qol/useLightMode';
 
 const label = getCurrentWindow().label;
 
+/// Light mode is applied before the first snapshot arrives, so windows do not
+/// flash the wrong theme on open.
+const emptySnapshot = { qol: { lightMode: false, windowsLight: false } } as Snapshot;
+
 function Shell() {
   const [snapshot, setSnapshot] = React.useState<Snapshot | null>(null);
+  useLightMode(snapshot ?? emptySnapshot);
 
   React.useEffect(() => {
     let unlisten: (() => void) | undefined;
