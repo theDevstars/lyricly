@@ -8,6 +8,7 @@ import {
   reloadLyrics,
   setAmbientMode,
   setDisplayIndex,
+  setDisplayStyle,
   setCiderToken,
   spotifyLink,
   spotifyStatus,
@@ -643,6 +644,31 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
               ))}
             </select>
           </label>
+
+          <div className="per-display">
+            <p className="note">
+              Give a display its own style and Lyrica opens a click-through lyric overlay on it.
+              Leave a display on Main style to keep the style above everywhere.
+            </p>
+            {monitors.map((index) => (
+              <label className="field" key={index}>
+                <span>Display {index + 1} style</span>
+                <select
+                  value={snapshot.settings.displayStyles?.[String(index)] ?? ''}
+                  onChange={(event) =>
+                    void setDisplayStyle(index, event.target.value || null)
+                  }
+                >
+                  <option value="">Main style</option>
+                  {STYLES.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
 
           <label className="field">
             <span>Window opacity</span>

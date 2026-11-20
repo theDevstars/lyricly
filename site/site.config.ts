@@ -30,7 +30,7 @@ const siteConfig = {
     priceNote:
       "Free while Lyrica is in open beta. A Discord account is required to download; there is no payment.",
     ctaLabel: "Download for Windows",
-    badge: "Free · 3.5 MB",
+    badge: "Free · 3.6 MB",
     /** Optional line under the button, e.g. "One-time purchase. Updates included." */
     footnote: "Includes updates through the app. Windows 10 2004+ or Windows 11.",
   },
@@ -43,8 +43,8 @@ const siteConfig = {
      */
     windowsUrl: "/downloads/Lyrica-Setup-2.0.0.exe",
     /** SHA-256 of that exact file. Regenerate whenever you replace the installer. */
-    sha256: "53d684ce445d7d2ce4ffa27774a7f288833d994f0f775860f1389786f39a81ea",
-    sizeLabel: "3.5 MB",
+    sha256: "dd4ec4ca42a6c7d88ae1f625a7c926b72bfbadf7da2b771033cf47d88d02dae6",
+    sizeLabel: "3.6 MB",
   },
 
   systemRequirements: [

@@ -1199,6 +1199,7 @@ fn update_settings(app: AppHandle, patch: Settings) {
     if let Some(window) = app.get_webview_window("window") {
         let _ = window.set_skip_taskbar(!show_in_taskbar);
     }
+    sync_lyric_layers(&app);
     emit_snapshot(&app);
 }
 
@@ -1556,6 +1557,98 @@ fn place_overlay(app: &AppHandle, index: usize) -> bool {
         };
     });
     true
+}
+
+/// A display with its own style gets a full-screen, click-through overlay of its
+/// own. The label carries the monitor index, so the window knows which style is
+/// its own once the snapshot arrives.
+fn ensure_layer_window(app: &AppHandle, monitor_index: usize) -> Option<WebviewWindow> {
+    let label = format!("lyrics-layer-{monitor_index}");
+    if let Some(window) = app.get_webview_window(&label) {
+        return Some(window);
+    }
+
+    let monitors = app.available_monitors().ok()?;
+    let monitor = monitors.get(monitor_index)?.clone();
+    let scale = monitor.scale_factor();
+    let size = monitor.size().to_logical::<f64>(scale);
+    let position = monitor.position().to_logical::<f64>(scale);
+
+    let window = WebviewWindowBuilder::new(app, &label, tauri::WebviewUrl::App("index.html".into()))
+        .title(format!("Lyrica Display {}", monitor_index + 1))
+        .inner_size(size.width, size.height)
+        .position(position.x, position.y)
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .focused(false)
+        .resizable(false)
+        .visible(false)
+        .build()
+        .ok()?;
+
+    // Lyrics only: clicks belong to whatever is underneath.
+    let _ = window.set_ignore_cursor_events(true);
+
+    #[cfg(windows)]
+    if let Ok(handle) = window.hwnd() {
+        overlay::make_click_through(handle.0 as isize);
+        overlay::pin_topmost(handle.0 as isize);
+    }
+
+    Some(window)
+}
+
+/// Keeps one overlay alive per display that has its own style. Windows are
+/// hidden rather than destroyed, because a Tauri label cannot be reused once its
+/// window is gone.
+fn sync_lyric_layers(app: &AppHandle) {
+    let (styles, visible) = {
+        let state = app.state::<Shared>();
+        let runtime = state.runtime.lock().expect("runtime lock");
+        (
+            runtime.settings.display_styles.clone(),
+            runtime.settings.show_on_desktop,
+        )
+    };
+
+    for (label, window) in app.webview_windows() {
+        let Some(index) = label.strip_prefix("lyrics-layer-") else {
+            continue;
+        };
+        if !styles.contains_key(index) {
+            let _ = window.hide();
+        }
+    }
+
+    for index in styles.keys() {
+        let Ok(index) = index.parse::<usize>() else {
+            continue;
+        };
+        if let Some(window) = ensure_layer_window(app, index) {
+            let _ = if visible { window.show() } else { window.hide() };
+        }
+    }
+}
+
+/// Gives one display its own style, or clears it back to the shared style.
+#[tauri::command]
+fn set_display_style(app: AppHandle, monitor: usize, style: Option<String>) {
+    save_settings(&app, |settings| {
+        let key = monitor.to_string();
+        match style {
+            Some(style) if !style.is_empty() => {
+                settings.display_styles.insert(key, style);
+            }
+            _ => {
+                settings.display_styles.remove(&key);
+            }
+        }
+    });
+    sync_lyric_layers(&app);
+    emit_snapshot(&app);
 }
 
 /// One display setting for the whole app: the overlay, Ambient and Late Night
@@ -2135,6 +2228,7 @@ pub fn run() {
             start_poller(handle.clone());
             start_spotify_poller(handle.clone());
             set_autostart(autostart_on);
+            sync_lyric_layers(&handle);
             start_ambient_loop(handle);
             Ok(())
         })
@@ -2189,6 +2283,7 @@ pub fn run() {
             toggle_play_pause,
             set_ambient_mode,
             set_display_index,
+            set_display_style,
             show_desktop_scene,
             hide_desktop_scene,
             refresh_desktop_scene,

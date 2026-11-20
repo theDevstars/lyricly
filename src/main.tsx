@@ -5,7 +5,9 @@ import './styles.css';
 import type { Snapshot } from './types';
 import { getState, onState } from './lib/api';
 import { LyricsWindow } from './windows/LyricsWindow';
+import { LyricsLayerWindow } from './windows/LyricsLayerWindow';
 import { AmbientWindow } from './windows/AmbientWindow';
+import { SceneRoot } from './scene/SceneRoot';
 import { LateNightWindow } from './windows/LateNightWindow';
 import { LicenseDialog } from './windows/LicenseDialog';
 import { MainWindow } from './window/MainWindow';
@@ -43,6 +45,8 @@ function Shell() {
   }
 
   if (label === 'ambient') return <AmbientWindow snapshot={snapshot} />;
+  if (label.startsWith('lyrics-layer')) return <LyricsLayerWindow snapshot={snapshot} />;
+  if (label.startsWith('scene')) return <SceneRoot snapshot={snapshot} />;
   if (label.startsWith('late-night')) return <LateNightWindow snapshot={snapshot} />;
   if (label === 'window') return <MainWindow snapshot={snapshot} />;
   if (label === 'license') return <LicenseDialog />;

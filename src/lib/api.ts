@@ -45,6 +45,10 @@ export const setAmbientMode = (enabled: boolean): Promise<void> =>
 export const setDisplayIndex = (index: number): Promise<void> =>
   invoke('set_display_index', { index });
 
+/** Gives one display its own lyric style; null clears it back to the shared one. */
+export const setDisplayStyle = (monitor: number, style: string | null): Promise<void> =>
+  invoke('set_display_style', { monitor, style });
+
 export const setWallpaperLayer = (enabled: boolean): Promise<void> =>
   invoke('set_wallpaper_layer', { enabled });
 

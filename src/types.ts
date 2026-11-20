@@ -66,6 +66,8 @@ export interface Settings {
   opacity: number;
   ambientEnabled: boolean;
   ambientMonitor: number;
+  /** Monitor index → style id: a display with an entry gets its own overlay. */
+  displayStyles: Record<string, string>;
   ambientIdleMinutes: number;
   ambientHotkey: string;
   tapSyncHotkey: string;

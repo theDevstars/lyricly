@@ -285,6 +285,17 @@ body[data-window='ambient'] {
   background: transparent;
 }
 
+body[data-window='lyrics-layer'] {
+  background: transparent;
+}
+
+/* A display with its own style: lyrics only, edge to edge. */
+.lyrics-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
 .ambient-frame {
   position: relative;
   height: 100%;
@@ -1675,4 +1686,159 @@ html[data-light='on'] .rim-light {
   border: 1px solid var(--panel-border);
   border-radius: 7px;
   background: transparent;
+}
+
+/* ------------------------------------------------------------ desktop scene */
+
+html[data-window^='scene'],
+html[data-window^='scene'] body,
+html[data-window^='scene'] #root {
+  height: 100%;
+  overflow: hidden;
+  background: #05070b;
+}
+
+.scene-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  color: #eaf2ff;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: 0.01em;
+}
+
+/* Procedural dark planet, so the demo ships no artwork of anyone's. */
+.scene-planet {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 78% 88%, rgba(70, 120, 255, 0.35), transparent 46%),
+    radial-gradient(circle at 74% 92%, rgba(12, 20, 40, 0.9) 0 30%, transparent 46%),
+    radial-gradient(circle at 20% 10%, rgba(120, 90, 255, 0.16), transparent 42%),
+    linear-gradient(165deg, #070b16 0%, #05070d 55%, #03050a 100%);
+}
+
+.scene-planet::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.6px 1.6px at 18% 22%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1.2px 1.2px at 62% 16%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1.4px 1.4px at 84% 34%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 34% 48%, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(1.3px 1.3px at 8% 66%, rgba(255, 255, 255, 0.35), transparent);
+}
+
+.scene-test-widget {
+  position: absolute;
+  left: 96px;
+  top: 96px;
+  width: 420px;
+  padding: 26px 28px 28px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(160deg, rgba(16, 24, 40, 0.86), rgba(8, 12, 22, 0.82));
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px);
+}
+
+.scene-test-widget header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.scene-eyebrow {
+  font-size: 11px;
+  font-variant: small-caps;
+  letter-spacing: 0.16em;
+  text-transform: lowercase;
+  color: rgba(200, 216, 240, 0.6);
+}
+
+.scene-test-widget time {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(200, 216, 240, 0.75);
+}
+
+.scene-test-widget h1 {
+  margin: 14px 0 10px;
+  font-size: 30px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.scene-test-widget p {
+  margin: 0 0 18px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(206, 219, 238, 0.72);
+}
+
+.scene-test-widget dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.scene-test-widget dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 12.5px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.scene-test-widget dt {
+  font-variant: small-caps;
+  letter-spacing: 0.12em;
+  color: rgba(180, 197, 222, 0.55);
+}
+
+.scene-test-widget dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  color: rgba(230, 240, 255, 0.9);
+}
+
+/* Three arcs turning at different speeds: a still screenshot cannot fake this. */
+.scene-ring {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  width: 52px;
+  height: 52px;
+}
+
+.scene-ring i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  border-top-color: rgba(120, 170, 255, 0.9);
+  animation: scene-spin 3.6s linear infinite;
+}
+
+.scene-ring i:nth-child(2) {
+  inset: 7px;
+  border-top-color: rgba(255, 130, 170, 0.75);
+  animation-duration: 2.4s;
+  animation-direction: reverse;
+}
+
+.scene-ring i:nth-child(3) {
+  inset: 14px;
+  border-top-color: rgba(150, 240, 210, 0.7);
+  animation-duration: 5.2s;
+}
+
+@keyframes scene-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
