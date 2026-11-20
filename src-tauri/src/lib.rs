@@ -13,6 +13,7 @@ mod tray;
 mod autostart;
 
 #[cfg(windows)]
+mod audio;
 mod desktop;
 
 use lyrics::{Lyrics, TrackQuery};
@@ -148,6 +149,8 @@ struct Snapshot {
     late_night: bool,
     tap_sync: Option<TapStatus>,
     qol: QolView,
+    /// Live audio analysis; inactive when nothing is playing.
+    audio: audio::analyze::AudioView,
 }
 
 #[derive(serde::Serialize, Clone)]
@@ -217,6 +220,7 @@ fn snapshot(state: &Shared) -> Snapshot {
             memory_size: state.memory.lock().map(|memory| memory.entries.len()).unwrap_or(0),
             windows_light: runtime.settings.qol_theme_follow && windows_light_theme(),
         },
+        audio: audio::view(),
     }
 }
 
@@ -2290,6 +2294,7 @@ pub fn run() {
                 }
             }
 
+            audio::start();
             start_poller(handle.clone());
             start_spotify_poller(handle.clone());
             set_autostart(autostart_on);

@@ -30,13 +30,27 @@ export const waveformWords: LyricStyle = {
     const { width, height, palette } = state;
     backdrop(ctx, width, height, '#04120e', '#062a20');
     const energy = energyOf(state);
+    const audio = state.audio;
+    const live = Boolean(audio?.active) && (audio?.bands.length ?? 0) > 3;
 
-    // The waveform, drawn twice: a soft fill and a bright line.
+    // The waveform: the real spectrum when audio is playing, otherwise a motion
+    // shaped by the lyric energy so the style never goes dead quiet.
+    const sampleAt = (x: number): number => {
+      if (!live) return waveAt(x, state.time, energy.level, width);
+      const bands = audio!.bands;
+      const position = (x / Math.max(1, width)) * (bands.length - 1);
+      const low = Math.floor(position);
+      const fraction = position - low;
+      const a = bands[low] ?? 0;
+      const b = bands[Math.min(bands.length - 1, low + 1)] ?? a;
+      return (a + (b - a) * fraction) * 2 - 1;
+    };
+
     const baseline = height * 0.72;
-    const amplitude = height * 0.16;
+    const amplitude = height * (live ? 0.13 + audio!.bass * 0.14 : 0.16);
     ctx.beginPath();
     for (let x = 0; x <= width; x += 6) {
-      const y = baseline + waveAt(x, state.time, energy.level, width) * amplitude;
+      const y = baseline + sampleAt(x) * amplitude;
       if (x === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }

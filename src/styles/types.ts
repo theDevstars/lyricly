@@ -1,4 +1,4 @@
-import type { LyricLine } from '../types';
+import type { AudioView, LyricLine } from '../types';
 
 export interface Palette {
   accent: string;
@@ -34,6 +34,8 @@ export interface StyleState {
   height: number;
   /** Per-style options, e.g. how many lines Context Window shows. */
   styleOptions?: Record<string, string | number | boolean>;
+  /** Live audio analysis, absent when nothing is playing. */
+  audio?: AudioView;
   /** Static layout, crossfades only. */
   reduceMotion?: boolean;
   /** No flashing or hard tearing, whatever the style defaults to. */

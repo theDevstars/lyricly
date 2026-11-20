@@ -39,9 +39,11 @@ export function postEffects(
   const energy = energyOf(state);
 
   if (has(effects, 'particles')) drawParticles(ctx, state, energy.level);
+  // A real beat from the audio device is sharper than the lyric estimate.
+  const beat = Boolean(state.audio?.active && state.audio.beat);
   if (has(effects, 'emphasis')) drawEmphasis(ctx, state);
   if (has(effects, 'chorus') && state.lineProgress > 0.05) drawChorusLift(ctx, state);
-  if (has(effects, 'beat')) drawBeatLight(ctx, state, energy.pulse);
+  if (has(effects, 'beat')) drawBeatLight(ctx, state, energy.pulse, beat);
   if (has(effects, 'parallax')) drawParallax(ctx, state);
   if (has(effects, 'rhyme')) drawRhymeTicks(ctx, state);
 }
@@ -59,7 +61,7 @@ function hexAlpha(hex: string, alpha: number): string {
 /** Sparks lift off the word being sung. Deterministic per word. */
 function drawParticles(ctx: CanvasRenderingContext2D, state: StyleState, level: number): void {
   if (state.wordIndex < 0) return;
-  const count = 8 + Math.round(level * 10);
+  const count = 8 + Math.round(level * 10) + Math.round((state.audio?.active ? state.audio.level : 0) * 8);
   const progress = state.wordProgress;
   ctx.save();
   for (let index = 0; index < count; index += 1) {
@@ -100,8 +102,14 @@ function drawChorusLift(ctx: CanvasRenderingContext2D, state: StyleState): void 
 }
 
 /** A single soft pulse per beat, never faster than 3 Hz. */
-function drawBeatLight(ctx: CanvasRenderingContext2D, state: StyleState, pulse: number): void {
-  const strength = Math.max(0, 1 - pulse) ** 2 * 0.08;
+function drawBeatLight(
+  ctx: CanvasRenderingContext2D,
+  state: StyleState,
+  pulse: number,
+  beat: boolean,
+): void {
+  // On a detected beat the frame lifts once; otherwise the bpm grid keeps time.
+  const strength = Math.max(0, 1 - pulse) ** 2 * 0.08 + (beat ? 0.06 : 0);
   ctx.fillStyle = hexAlpha(state.palette.accent, strength);
   ctx.fillRect(0, 0, state.width, state.height);
 }

@@ -112,6 +112,7 @@ export function StyleCanvas({ snapshot, style, className, hidden }: StyleCanvasP
         reduceMotion: Boolean(snapshot.settings.reduceMotion),
         photosensitive: Boolean(snapshot.settings.photosensitive),
         styleOptions: styleOptionsFor(activeStyle.id, snapshot.settings.styleOptions),
+        audio: snapshot.audio,
       };
 
       const effects = safeEffects(effectsFor(activeStyle, snapshot.settings.styleEffects), state);

@@ -25,6 +25,19 @@ export interface LyricLine {
   exact: boolean;
 }
 
+export interface AudioView {
+  /** False when no device is open or nothing is audibly playing. */
+  active: boolean;
+  level: number;
+  bass: number;
+  mid: number;
+  high: number;
+  beat: boolean;
+  bpm: number;
+  /** 16 log-spaced bands, 0..1. */
+  bands: number[];
+}
+
 export interface Lyrics {
   source: string;
   lines: LyricLine[];
@@ -204,6 +217,7 @@ export interface Snapshot {
   settings: Settings;
   lyrics: Lyrics | null;
   trackKey: string;
+  audio?: AudioView;
   loading: boolean;
   ambientOn: boolean;
   error: string | null;
