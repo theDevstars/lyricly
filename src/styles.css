@@ -344,6 +344,36 @@ body[data-window='ambient'] {
   gap: 16px;
 }
 
+/* Settings shown inside the lyrics window rather than a second window. */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow: auto;
+  background: rgba(12, 12, 14, 0.97);
+  backdrop-filter: blur(20px);
+}
+
+.settings-overlay .prefs {
+  padding: 16px 18px 20px;
+  gap: 12px;
+}
+
+.settings-overlay .tabs {
+  position: sticky;
+  top: 0;
+  background: rgba(12, 12, 14, 0.96);
+  z-index: 1;
+}
+
+.tabs-close {
+  margin-left: auto;
+}
+
+.ghost-icon.on {
+  background: rgba(255, 255, 255, 0.16);
+}
+
 .prefs-header {
   display: flex;
   align-items: flex-start;
@@ -583,8 +613,27 @@ body[data-window='ambient'] {
   font-size: 12.5px;
 }
 
-.field input[type='text'] {
+.field input[type='number'],
+.field input[type='password'] {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.field input[type='text'],
+.field input[type='number'],
+.field input[type='password'] {
   grid-column: span 2;
+}
+
+/* Rows whose control needs the full width beside the label. */
+.field-wide {
+  grid-template-columns: 180px 1fr;
 }
 
 input[type='range'] {

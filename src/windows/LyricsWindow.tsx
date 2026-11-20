@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { listen } from '@tauri-apps/api/event';
 import type { Snapshot } from '../types';
 import { getStyle, STYLES } from '../styles/registry';
 import { StyleCanvas } from '../components/StyleCanvas';
-import { nudge, openPreferences, setStyle, togglePlayPause } from '../lib/api';
+import { Preferences } from './Preferences';
+import { nudge, setStyle, togglePlayPause } from '../lib/api';
 
 interface LyricsWindowProps {
   snapshot: Snapshot;
@@ -14,6 +16,7 @@ const PLAYERS = ['Spotify', 'Apple Music'];
 export function LyricsWindow({ snapshot }: LyricsWindowProps) {
   const style = getStyle(snapshot.settings.style);
   const [hovered, setHovered] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const playing = snapshot.playback.status === 'playing';
   const hasTrack = Boolean(snapshot.playback.title);
 
@@ -21,6 +24,24 @@ export function LyricsWindow({ snapshot }: LyricsWindowProps) {
     const header = document.querySelector('.topbar');
     if (header) header.setAttribute('data-tauri-drag-region', '');
   }, []);
+
+  // The tray's Preferences item asks this window to reveal the panel.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void listen('lyrica:open-settings', () => setSettingsOpen(true)).then((stop) => {
+      unlisten = stop;
+    });
+    return () => unlisten?.();
+  }, []);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSettingsOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [settingsOpen]);
 
   const close = () => {
     void getCurrentWindow().hide();
@@ -94,7 +115,12 @@ export function LyricsWindow({ snapshot }: LyricsWindowProps) {
             {playing ? '❚❚' : '▶'}
           </button>
 
-          <button type="button" className="ghost-icon" onClick={() => void openPreferences()} title="Preferences">
+          <button
+            type="button"
+            className={`ghost-icon ${settingsOpen ? 'on' : ''}`}
+            onClick={() => setSettingsOpen((open) => !open)}
+            title="Settings"
+          >
             ⚙
           </button>
           <button type="button" className="ghost-icon" onClick={close} title="Hide">
@@ -116,6 +142,12 @@ export function LyricsWindow({ snapshot }: LyricsWindowProps) {
           <div className="error-hint">{snapshot.error}</div>
         )}
       </div>
+
+      {settingsOpen && (
+        <div className="settings-overlay">
+          <Preferences snapshot={snapshot} onClose={() => setSettingsOpen(false)} />
+        </div>
+      )}
     </div>
   );
 }

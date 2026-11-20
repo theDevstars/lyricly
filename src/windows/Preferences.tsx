@@ -14,17 +14,22 @@ import {
 
 interface PreferencesProps {
   snapshot: Snapshot;
+  /// Provided when the panel is shown inside the lyrics window.
+  onClose?: () => void;
 }
 
 type Tab = 'styles' | 'players' | 'overlay' | 'ambient';
 
-export function Preferences({ snapshot }: PreferencesProps) {
+export function Preferences({ snapshot, onClose }: PreferencesProps) {
   const [tab, setTab] = useState<Tab>('styles');
   const [draft, setDraft] = useState<Settings>(snapshot.settings);
   const [hovered, setHovered] = useState<string | null>(null);
   const [ciderToken, setCiderTokenDraft] = useState('');
   const [ciderStatus, setCiderStatus] = useState<CiderStatus | null>(null);
   const [testingCider, setTestingCider] = useState(false);
+  // Held locally and saved on blur, so a settings round trip cannot fight typing.
+  const [hostDraft, setHostDraft] = useState(snapshot.settings.ciderHost);
+  const [portDraft, setPortDraft] = useState(String(snapshot.settings.ciderPort));
 
   useEffect(() => {
     setDraft(snapshot.settings);
@@ -42,6 +47,25 @@ export function Preferences({ snapshot }: PreferencesProps) {
     await setCiderToken(ciderToken);
     setCiderTokenDraft('');
     setCiderStatus(null);
+  };
+
+  const clearCiderToken = async () => {
+    await setCiderToken('');
+    setCiderTokenDraft('');
+    setCiderStatus(null);
+  };
+
+  const commitCiderHost = () => {
+    const host = hostDraft.trim() || 'localhost';
+    setHostDraft(host);
+    commit({ ciderHost: host });
+  };
+
+  const commitCiderPort = () => {
+    const parsed = Number(portDraft);
+    const port = Number.isFinite(parsed) ? Math.min(65535, Math.max(1, Math.round(parsed))) : 10767;
+    setPortDraft(String(port));
+    commit({ ciderPort: port });
   };
 
   const runCiderTest = async () => {
@@ -99,6 +123,11 @@ export function Preferences({ snapshot }: PreferencesProps) {
         <button type="button" className={tab === 'ambient' ? 'on' : ''} onClick={() => setTab('ambient')}>
           Ambient
         </button>
+        {onClose && (
+          <button type="button" className="ghost tabs-close" onClick={onClose}>
+            Done
+          </button>
+        )}
       </nav>
 
       {tab === 'styles' && (
@@ -174,8 +203,9 @@ export function Preferences({ snapshot }: PreferencesProps) {
             <span>Host</span>
             <input
               type="text"
-              value={draft.ciderHost}
-              onChange={(event) => commit({ ciderHost: event.target.value })}
+              value={hostDraft}
+              onChange={(event) => setHostDraft(event.target.value)}
+              onBlur={commitCiderHost}
             />
           </label>
 
@@ -185,12 +215,13 @@ export function Preferences({ snapshot }: PreferencesProps) {
               type="number"
               min={1}
               max={65535}
-              value={draft.ciderPort}
-              onChange={(event) => commit({ ciderPort: Number(event.target.value) })}
+              value={portDraft}
+              onChange={(event) => setPortDraft(event.target.value)}
+              onBlur={commitCiderPort}
             />
           </label>
 
-          <label className="field">
+          <label className="field field-wide">
             <span>API token</span>
             <input
               type="password"
@@ -198,14 +229,6 @@ export function Preferences({ snapshot }: PreferencesProps) {
               value={ciderToken}
               onChange={(event) => setCiderTokenDraft(event.target.value)}
             />
-            <button
-              type="button"
-              className="ghost"
-              onClick={() => void saveCiderToken()}
-              disabled={!ciderToken.trim()}
-            >
-              Save token
-            </button>
           </label>
 
           <p className="note">
@@ -230,6 +253,17 @@ export function Preferences({ snapshot }: PreferencesProps) {
           </div>
 
           <div className="panel-actions">
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => void saveCiderToken()}
+              disabled={!ciderToken.trim()}
+            >
+              Save token
+            </button>
+            <button type="button" className="ghost" onClick={() => void clearCiderToken()}>
+              Clear token
+            </button>
             <button
               type="button"
               className="ghost"

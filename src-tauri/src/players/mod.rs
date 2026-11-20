@@ -3,4 +3,4 @@
 
 pub mod cider;
 
-pub use cider::{CiderConfig, CiderStatus};
+pub use cider::CiderConfig;

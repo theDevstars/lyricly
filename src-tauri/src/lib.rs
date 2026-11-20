@@ -100,29 +100,11 @@ pub fn show_lyrics_window(app: &AppHandle) {
     }
 }
 
+/// Settings live inside the lyrics window, so opening them means showing that
+/// window and asking it to reveal the panel — no second window.
 fn show_prefs(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("prefs") {
-        let _ = window.show();
-        let _ = window.set_focus();
-        return;
-    }
-
-    let window = WebviewWindowBuilder::new(app, "prefs", tauri::WebviewUrl::App("index.html".into()))
-        .title("Lyrica Preferences")
-        .inner_size(860.0, 660.0)
-        .min_inner_size(720.0, 520.0)
-        .resizable(true)
-        .decorations(true)
-        .transparent(false)
-        .center()
-        .build();
-
-    match window {
-        Ok(window) => {
-            let _ = window.set_focus();
-        }
-        Err(error) => eprintln!("could not open preferences: {error}"),
-    }
+    show_lyrics_window(app);
+    let _ = app.emit("lyrica:open-settings", true);
 }
 
 fn ambient_window(app: &AppHandle) -> Option<WebviewWindow> {
@@ -429,7 +411,16 @@ fn update_settings(app: AppHandle, patch: Settings) {
     let state = app.state::<Shared>();
     {
         let mut runtime = state.runtime.lock().expect("runtime lock");
-        runtime.settings = patch;
+        let mut next = patch;
+        // Preferences sends a whole snapshot: keep the live window geometry
+        // rather than the copy it loaded, and sanitize the free-text fields.
+        next.window = runtime.settings.window.clone();
+        next.cider_host = next.cider_host.trim().to_string();
+        if next.cider_host.is_empty() {
+            next.cider_host = "localhost".into();
+        }
+        next.cider_port = next.cider_port.clamp(1, 65_535);
+        runtime.settings = next;
         runtime.settings.save(&config_path(&app));
         state.genius_parsing.store(
             runtime.settings.lyrics_allow_genius_page_parsing,
