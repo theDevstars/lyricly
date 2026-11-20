@@ -7,6 +7,7 @@ import {
   quitApp,
   reloadLyrics,
   setAmbientMode,
+  setDisplayIndex,
   setCiderToken,
   spotifyLink,
   spotifyStatus,
@@ -623,6 +624,26 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
 
       {tab === 'overlay' && (
         <section className="panel">
+          <label className="field">
+            <span>Show on display</span>
+            <select
+              value={draft.ambientMonitor}
+              onChange={(event) => {
+                const index = Number(event.target.value);
+                // One setting for the whole app: the overlay, Ambient and Late
+                // Night all move to this display.
+                commit({ ambientMonitor: index, lateNightMonitor: index });
+                void setDisplayIndex(index);
+              }}
+            >
+              {monitors.map((index) => (
+                <option key={index} value={index}>
+                  Display {index + 1}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <label className="field">
             <span>Window opacity</span>
             <input

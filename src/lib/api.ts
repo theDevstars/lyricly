@@ -41,6 +41,10 @@ export const setLateNight = (enabled: boolean): Promise<void> =>
 export const setAmbientMode = (enabled: boolean): Promise<void> =>
   invoke('set_ambient_mode', { enabled });
 
+/** The one display setting: overlay, Ambient and Late Night all follow it. */
+export const setDisplayIndex = (index: number): Promise<void> =>
+  invoke('set_display_index', { index });
+
 export const setWallpaperLayer = (enabled: boolean): Promise<void> =>
   invoke('set_wallpaper_layer', { enabled });
 

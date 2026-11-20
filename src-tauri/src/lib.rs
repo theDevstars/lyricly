@@ -1518,12 +1518,60 @@ fn set_show_on_desktop(app: AppHandle, on: bool) {
     sync_tray(&app);
 }
 
+/// Puts the floating overlay on a display and remembers where it landed, so a
+/// restart restores it there. It follows the same display the tray moves Ambient
+/// and Late Night to.
+fn place_overlay(app: &AppHandle, index: usize) -> bool {
+    let Some(window) = app.get_webview_window("lyrics") else {
+        return false;
+    };
+    let Ok(monitors) = app.available_monitors() else {
+        return false;
+    };
+    let Some(monitor) = monitors.get(index).or_else(|| monitors.first()).cloned() else {
+        return false;
+    };
+
+    let scale = monitor.scale_factor();
+    let area = monitor.size().to_logical::<f64>(scale);
+    let origin = monitor.position().to_logical::<f64>(scale);
+    let size = window
+        .outer_size()
+        .map(|size| size.to_logical::<f64>(scale))
+        .unwrap_or(LogicalSize::new(760.0, 300.0));
+    let width = size.width.min(area.width);
+    let height = size.height.min(area.height);
+    let x = origin.x + (area.width - width) / 2.0;
+    let y = origin.y + (area.height - height) / 2.0;
+
+    let _ = window.set_size(LogicalSize::new(width, height));
+    let _ = window.set_position(LogicalPosition::new(x, y));
+    save_settings(app, |settings| {
+        settings.window = WindowState {
+            x: x.round() as i32,
+            y: y.round() as i32,
+            width: width.round() as u32,
+            height: height.round() as u32,
+            monitor: index.to_string(),
+        };
+    });
+    true
+}
+
+/// One display setting for the whole app: the overlay, Ambient and Late Night
+/// all follow it.
+#[tauri::command]
+fn set_display_index(app: AppHandle, index: usize) {
+    set_display(app, index);
+}
+
 fn set_display(app: AppHandle, index: usize) {
     save_settings(&app, |settings| {
         settings.ambient_monitor = index;
         settings.late_night_monitor = index;
     });
     place_ambient(&app, index);
+    place_overlay(&app, index);
     let late_on = {
         let state = app.state::<Shared>();
         let runtime = state.runtime.lock().expect("runtime lock");
@@ -2140,6 +2188,7 @@ pub fn run() {
             nudge,
             toggle_play_pause,
             set_ambient_mode,
+            set_display_index,
             show_desktop_scene,
             hide_desktop_scene,
             refresh_desktop_scene,
