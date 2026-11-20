@@ -12,6 +12,9 @@ mod tray;
 #[cfg(windows)]
 mod autostart;
 
+#[cfg(windows)]
+mod desktop;
+
 use lyrics::{Lyrics, TrackQuery};
 use media::{now_ms, Playback};
 use settings::{Settings, WindowState};
@@ -1421,6 +1424,62 @@ fn set_ambient_mode(app: AppHandle, enabled: bool) {
     set_ambient(&app, enabled);
 }
 
+/// Puts the scene on every monitor; returns the window labels that went up.
+#[tauri::command]
+fn show_desktop_scene(app: AppHandle) -> Vec<String> {
+    #[cfg(windows)]
+    {
+        return desktop::scene::show_all(&app);
+    }
+    #[allow(unreachable_code)]
+    Vec::new()
+}
+
+#[tauri::command]
+fn hide_desktop_scene(app: AppHandle) {
+    #[cfg(windows)]
+    desktop::scene::hide_all(&app);
+    #[allow(unused_variables)]
+    let _ = &app;
+}
+
+/// Re-attaches the scene now, instead of waiting for the next supervisor tick.
+#[tauri::command]
+fn refresh_desktop_scene(app: AppHandle) -> Vec<String> {
+    #[cfg(windows)]
+    {
+        return desktop::scene::reconcile(&app);
+    }
+    #[allow(unreachable_code)]
+    Vec::new()
+}
+
+/// What the scene host sees right now: window label, size and parent, for tests.
+#[tauri::command]
+fn scene_windows(app: AppHandle) -> Vec<String> {
+    let mut rows = Vec::new();
+    #[cfg(windows)]
+    for target in desktop::monitors::targets(&app) {
+        let Some(window) = app.get_webview_window(&target.label()) else {
+            continue;
+        };
+        let parent = window
+            .hwnd()
+            .ok()
+            .map(|handle| desktop::workerw::is_attached(handle.0 as isize))
+            .unwrap_or(false);
+        rows.push(format!(
+            "{} {} {} parented={parent}",
+            target.label(),
+            target.name,
+            target.size_label()
+        ));
+    }
+    #[allow(unused_variables)]
+    let _ = &app;
+    rows
+}
+
 fn save_settings(app: &AppHandle, mutate: impl FnOnce(&mut Settings)) {
     let state = app.state::<Shared>();
     let mut runtime = state.runtime.lock().expect("runtime lock");
@@ -1694,7 +1753,11 @@ fn activate_license(app: AppHandle, key: String) -> Result<license::LicenseStatu
 
 #[tauri::command]
 fn deactivate_license(app: AppHandle) -> Result<license::LicenseStatus, String> {
-    let _ = credentials::delete(credentials::LICENSE_KEY);
+    // Deleting a key that is not there is not a failure; failing to delete one
+    // that is there must not look like a successful deactivation.
+    if credentials::read(credentials::LICENSE_KEY).is_some() {
+        credentials::delete(credentials::LICENSE_KEY)?;
+    }
     let status = license_status(app.clone());
     emit_snapshot(&app);
     Ok(status)
@@ -1960,6 +2023,25 @@ pub fn run() {
                 let _ = ensure_ambient_window(&handle, 0);
                 apply_wallpaper_layer(&handle, true);
             }
+            // The desktop scene lives in Explorer's wallpaper layer, which does
+            // not exist until the shell has started, so it comes up after setup.
+            let scene_on = {
+                let state = handle.state::<Shared>();
+                let runtime = state.runtime.lock().expect("runtime lock");
+                runtime.settings.scene_enabled
+            };
+            if scene_on {
+                // Explorer restart and monitor changes are repaired by this
+                // loop, so it starts whether or not the scene is on yet.
+                desktop::scene::start_supervisor(&handle);
+                let handle = handle.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(Duration::from_millis(1_200));
+                    let labels = desktop::scene::show_all(&handle);
+                    eprintln!("scene: showing {labels:?}");
+                });
+            }
+
             // Ambient mode is a mode: if it was left on, come back in it.
             if ambient_on {
                 let handle = handle.clone();
@@ -2042,6 +2124,10 @@ pub fn run() {
             nudge,
             toggle_play_pause,
             set_ambient_mode,
+            show_desktop_scene,
+            hide_desktop_scene,
+            refresh_desktop_scene,
+            scene_windows,
             set_late_night,
             set_wallpaper_layer,
             reload_lyrics,

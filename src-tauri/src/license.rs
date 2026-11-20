@@ -95,6 +95,12 @@ pub fn verify(key: &str) -> Result<License, LicenseError> {
 }
 
 pub fn verify_with(key: &str, public: &VerifyingKey) -> Result<License, LicenseError> {
+    verify_with_at(key, public, now_ms())
+}
+
+/// Verification at a given instant: expiry and the trial clock have to agree, or
+/// a key can read as active in a state check that calls it expired.
+pub fn verify_with_at(key: &str, public: &VerifyingKey, now: i64) -> Result<License, LicenseError> {
     let trimmed = key.trim();
     let mut parts = trimmed.split('.');
     let (Some(prefix), Some(payload), Some(signature), None) = (
@@ -139,7 +145,7 @@ pub fn verify_with(key: &str, public: &VerifyingKey) -> Result<License, LicenseE
         return Err(LicenseError::Malformed("This key has no id.".into()));
     }
     if let Some(expires) = license.expires {
-        if expires.saturating_mul(1000) <= now_ms() {
+        if expires.saturating_mul(1000) <= now {
             return Err(LicenseError::Expired);
         }
     }
@@ -174,12 +180,30 @@ fn from_hex(text: &str) -> Option<Vec<u8>> {
 
 /// Current license state for the UI and the tray.
 pub fn status(settings: &Settings) -> LicenseStatus {
+    let stored = credentials::read(credentials::LICENSE_KEY);
+    status_at(settings, stored.as_deref(), now_ms(), &verify_at)
+}
+
+fn verify_at(key: &str, now: i64) -> Result<License, LicenseError> {
+    let public = public_key()?;
+    verify_with_at(key, &public, now)
+}
+
+/// The same decision with the stored key, the clock and the verifier supplied,
+/// so every state is reachable in a test without a credential store or a real
+/// signing key.
+pub fn status_at(
+    settings: &Settings,
+    stored: Option<&str>,
+    now: i64,
+    verify_key: &dyn Fn(&str, i64) -> Result<License, LicenseError>,
+) -> LicenseStatus {
     if !settings.licensing_enabled {
         return LicenseStatus::disabled();
     }
 
-    if let Some(key) = credentials::read(credentials::LICENSE_KEY) {
-        match verify(&key) {
+    if let Some(key) = stored {
+        match verify_key(key, now) {
             Ok(license) => {
                 return LicenseStatus {
                     enabled: true,
@@ -222,9 +246,9 @@ pub fn status(settings: &Settings) -> LicenseStatus {
     let started = if settings.trial_started_ms > 0 {
         settings.trial_started_ms
     } else {
-        now_ms()
+        now
     };
-    let elapsed_days = ((now_ms() - started) / 86_400_000).max(0);
+    let elapsed_days = ((now - started) / 86_400_000).max(0);
     let left = TRIAL_DAYS - elapsed_days;
 
     if left > 0 {
@@ -332,6 +356,134 @@ mod tests {
         };
         let licence = verify(&key).expect("keygen output should verify");
         assert!(!licence.id.is_empty());
+    }
+
+    fn settings(trial_started_ms: i64, licensing: bool) -> Settings {
+        Settings {
+            licensing_enabled: licensing,
+            trial_started_ms,
+            ..Settings::default()
+        }
+    }
+
+    #[test]
+    fn status_reports_an_active_key() {
+        let (signing, public) = keypair();
+        let key = issue(&signing, FREE);
+        let check = |key: &str, now: i64| verify_with_at(key, &public, now);
+
+        let status = status_at(
+            &settings(0, true),
+            Some(&key),
+            1_750_000_000_000,
+            &check,
+        );
+
+        assert!(status.enabled);
+        assert_eq!(status.state, "active");
+        assert_eq!(status.plan.as_deref(), Some("full"));
+        assert_eq!(status.name.as_deref(), Some("Invented Person"));
+        assert_eq!(status.expires_at_ms, None);
+        assert_eq!(status.trial_days_left, None);
+    }
+
+    #[test]
+    fn a_dated_key_reports_its_end_date() {
+        let (signing, public) = keypair();
+        let payload = r#"{"v":1,"id":"ord_2","name":"Dated","issued":1700000000,"expires":1800000000,"plan":"full"}"#;
+        let key = issue(&signing, payload);
+        let check = |key: &str, now: i64| verify_with_at(key, &public, now);
+
+        let status = status_at(
+            &settings(0, true),
+            Some(&key),
+            1_750_000_000_000,
+            &check,
+        );
+        assert_eq!(status.state, "active");
+        assert_eq!(status.expires_at_ms, Some(1_800_000_000_000));
+
+        let later = status_at(
+            &settings(0, true),
+            Some(&key),
+            1_810_000_000_000,
+            &check,
+        );
+        assert_eq!(later.state, "expired");
+        assert!(later.message.contains("run out"), "{}", later.message);
+    }
+
+    #[test]
+    fn a_forged_key_is_reported_as_invalid_not_as_expired() {
+        let (signing, public) = keypair();
+        let key = issue(&signing, FREE);
+        let parts: Vec<&str> = key.split('.').collect();
+        let forged = format!(
+            "{PREFIX}.{}.{}",
+            URL_SAFE_NO_PAD.encode(FREE.replace("Invented Person", "Someone Else")),
+            parts[2]
+        );
+        let check = |key: &str, now: i64| verify_with_at(key, &public, now);
+
+        let status = status_at(&settings(0, true), Some(&forged), 1_750_000_000_000, &check);
+        assert_eq!(status.state, "invalid");
+        assert_eq!(status.message, "this key was not issued for Lyrica");
+    }
+
+    #[test]
+    fn no_key_falls_back_to_the_trial_clock() {
+        let check = |_: &str, _: i64| -> Result<License, LicenseError> {
+            panic!("no key is stored, so nothing should be verified")
+        };
+        let now = 1_750_000_000_000;
+        let three_days = 3 * 86_400_000;
+
+        let status = status_at(&settings(now - three_days, true), None, now, &check);
+        assert_eq!(status.state, "trial");
+        assert_eq!(status.trial_days_left, Some(TRIAL_DAYS - 3));
+        assert_eq!(status.plan.as_deref(), Some("trial"));
+
+        // Exactly at the end of the trial, not a day later.
+        let ended = status_at(&settings(now - TRIAL_DAYS * 86_400_000, true), None, now, &check);
+        assert_eq!(ended.state, "expired");
+        assert_eq!(ended.trial_days_left, Some(0));
+        assert!(ended.message.contains("trial has ended"), "{}", ended.message);
+    }
+
+    #[test]
+    fn a_fresh_install_starts_the_trial_now() {
+        let check = |_: &str, _: i64| -> Result<License, LicenseError> { unreachable!() };
+        let now = 1_750_000_000_000;
+        let status = status_at(&settings(0, true), None, now, &check);
+        assert_eq!(status.state, "trial");
+        assert_eq!(status.trial_days_left, Some(TRIAL_DAYS));
+        assert_eq!(status.expires_at_ms, Some(now + TRIAL_DAYS * 86_400_000));
+    }
+
+    #[test]
+    fn a_key_is_ignored_when_licensing_is_switched_off() {
+        let (signing, public) = keypair();
+        let key = issue(&signing, FREE);
+        let check = |key: &str, now: i64| verify_with_at(key, &public, now);
+        let status = status_at(&settings(0, false), Some(&key), 1_750_000_000_000, &check);
+        assert!(!status.enabled);
+        assert_eq!(status.state, "disabled");
+    }
+
+    /// The Windows credential store is where activation actually keeps the key,
+    /// so its round trip is worth one test. Uses a scratch target, never the
+    /// real `lyrica/license-key`.
+    #[cfg(windows)]
+    #[test]
+    fn the_credential_store_round_trips() {
+        let target = "lyrica/test-credential";
+        let _ = credentials::delete(target);
+
+        credentials::write(target, "LYRICA1.test.value").expect("write");
+        assert_eq!(credentials::read(target).as_deref(), Some("LYRICA1.test.value"));
+
+        credentials::delete(target).expect("delete");
+        assert_eq!(credentials::read(target), None);
     }
 
     #[test]
