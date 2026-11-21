@@ -192,6 +192,23 @@ describe('Messages rendering', () => {
     expect(painted(calm.fake).filter((text) => words.includes(text))).toHaveLength(0);
   });
 
+  it('lays words out identically at every pop intensity', () => {
+    const line = lineFrom('we count the extraordinary', 0, 700);
+    const at = (popIntensity: string) =>
+      uniquePaint(
+        render({
+          lines: [line],
+          activeIndex: 0,
+          positionMs: line.words[2].startMs + 100,
+          styleOptions: { popIntensity },
+        }).fake,
+      ).map((paint) => `${paint.text}@${paint.x.toFixed(2)}`);
+
+    // Headroom is reserved for Strong, so switching intensity never re-wraps.
+    expect(at('subtle')).toEqual(at('normal'));
+    expect(at('normal')).toEqual(at('strong'));
+  });
+
   it('never lets a pop cross the bubble edge at any intensity', () => {
     const phrase = 'we count the extraordinary';
     const line = lineFrom(phrase, 0, 700);

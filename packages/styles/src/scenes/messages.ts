@@ -26,6 +26,8 @@ const POP_SCALE: Record<string, number> = { subtle: 1.18, normal: 1.34, strong: 
 /** Peak of easeOutBack with the spring below: the pop overshoots its target. */
 const SPRING = 2.6;
 const POP_PEAK = 1.2;
+/** Bubbles always reserve headroom for this, so changing intensity never re-wraps. */
+const HEADROOM_POP = 1.52;
 
 /** The size a pop actually reaches at its overshoot, for this intensity. */
 export function popPeak(pop: number): number {
@@ -494,7 +496,12 @@ export const messages: LyricStyle = {
 
     for (const item of items) {
       const layout = layoutPhrase(ctx, item.phrase.words, fonts, maxBubbleWidth - PAD_X * 2);
-      const bubbleWidth = Math.max(fontSize * 2.2, layout.width + popHeadroom(layout, pop));
+      // Headroom is sized for the strongest pop, whatever is selected now: a
+      // setting change must never move a word or re-wrap a phrase mid-song.
+      const bubbleWidth = Math.max(
+        fontSize * 2.2,
+        layout.width + popHeadroom(layout, HEADROOM_POP),
+      );
       const bubbleHeight = Math.max(fontSize * 1.5, layout.height);
       const previous = entries[entries.length - 1];
       const gap =
