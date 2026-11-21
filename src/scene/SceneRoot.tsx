@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getStyle } from '@lyrica/styles';
 import { StyleCanvas } from '../components/StyleCanvas';
+import { resolvePalette } from '../lib/colors';
+import { sceneLayerFor } from '../lib/sceneBlend';
 import type { Snapshot } from '../types';
 
 interface SceneRootProps {
@@ -18,6 +20,20 @@ interface SceneRootProps {
 export function SceneRoot({ snapshot }: SceneRootProps) {
   const label = getCurrentWindow().label;
   const style = getStyle(snapshot.settings.style);
+  const palette = resolvePalette(style.palette, snapshot.settings);
+  // Dark stages screen away so their black drops out; light paper stages float
+  // as an inset page so the ink stays readable. The planet survives both ways.
+  const layer = sceneLayerFor(palette.background);
+  const layerStyle: CSSProperties =
+    layer.inset > 0
+      ? {
+          mixBlendMode: layer.blend,
+          inset: `${layer.inset * 100}%`,
+          borderRadius: 18,
+          overflow: 'hidden',
+          boxShadow: '0 24px 80px rgba(0, 0, 0, 0.55)',
+        }
+      : { mixBlendMode: layer.blend };
   const [fps, setFps] = useState(0);
   const [seen, setSeen] = useState(0);
   const [visibility, setVisibility] = useState(document.visibilityState);
@@ -58,7 +74,9 @@ export function SceneRoot({ snapshot }: SceneRootProps) {
       {/* The style paints its own black stage; screen blending keeps the planet
           behind it while the bubbles and type sit on top. */}
       {snapshot.playback.title && (
-        <StyleCanvas snapshot={snapshot} style={style} className="style-canvas scene-canvas" />
+        <div className="scene-canvas" style={layerStyle}>
+          <StyleCanvas snapshot={snapshot} style={style} className="style-canvas" />
+        </div>
       )}
       <div className="scene-test-widget">
         <header>

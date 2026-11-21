@@ -1753,16 +1753,21 @@ html[data-window^='scene'] #root {
 }
 
 /*
- * The lyric style draws a solid black stage. Screen blending drops that black
- * out, so the planet stays visible and only the type and bubbles light up.
+ * The lyric stage is blended away per style: screen for dark stages, multiply
+ * for light paper ones (set inline from the style's background). Either way the
+ * planet stays visible and the type stays legible.
  */
 .scene-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  mix-blend-mode: screen;
   pointer-events: none;
+}
+
+.scene-canvas > .style-canvas {
+  width: 100%;
+  height: 100%;
 }
 
 /* Procedural dark planet, so the demo ships no artwork of anyone's. */
