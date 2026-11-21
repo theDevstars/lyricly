@@ -6,6 +6,7 @@ import {
   splitPhrases,
   threadAt,
   timedWords,
+  wordState,
   type PhraseWord,
 } from './messagesModel';
 
@@ -144,6 +145,79 @@ describe('phrasesOfLine', () => {
   });
 });
 
+describe('wordState', () => {
+  const timing = (startMs: number, endMs: number) => ({ startMs, endMs });
+
+  it('walks hidden, ghost, active and settled at the exact boundaries', () => {
+    const first = timing(1000, 1600);
+    expect(wordState(849, first).phase).toBe('hidden');
+    expect(wordState(850, first).phase).toBe('ghost');
+    expect(wordState(999, first).phase).toBe('ghost');
+    expect(wordState(1000, first).phase).toBe('active');
+    expect(wordState(1599, first).phase).toBe('active');
+    expect(wordState(1600, first).phase).toBe('settled');
+  });
+
+  it('takes half of a short previous word as the ghost lead', () => {
+    const prev = timing(0, 120);
+    const next = timing(200, 600);
+    expect(wordState(200, next, prev).leadMs).toBe(60);
+    expect(wordState(141, next, prev).phase).toBe('ghost');
+    expect(wordState(139, next, prev).phase).toBe('hidden');
+  });
+
+  it('never pops for less than the minimum hold', () => {
+    const word = timing(0, 40);
+    const next = timing(40, 300);
+    const state = wordState(0, word, undefined, next);
+    expect(state.settleAtMs).toBe(180);
+    expect(wordState(179, word, undefined, next).phase).toBe('active');
+    expect(wordState(180, word, undefined, next).phase).toBe('settled');
+  });
+
+  it('settles when the next word starts if that is first', () => {
+    const word = timing(0, 900);
+    const next = timing(500, 1200);
+    expect(wordState(0, word, undefined, next).settleAtMs).toBe(500);
+  });
+
+  it('skips the ghost for words delivered faster than 90ms apart', () => {
+    const prev = timing(0, 60);
+    const word = timing(60, 120);
+    const state = wordState(60, word, prev);
+    expect(state.fast).toBe(true);
+    expect(state.leadMs).toBe(0);
+    expect(wordState(59, word, prev).phase).toBe('hidden');
+    expect(wordState(60, word, prev).phase).toBe('active');
+  });
+
+  it('keeps a long held word active and marks it held', () => {
+    const word = timing(0, 1500);
+    const next = timing(1600, 2000);
+    const state = wordState(900, word, undefined, next);
+    expect(state.held).toBe(true);
+    expect(state.phase).toBe('active');
+    expect(state.settleAtMs).toBe(1500);
+  });
+
+  it('reports the right phases after a seek', () => {
+    const words = [timing(0, 400), timing(400, 800), timing(800, 1200), timing(1200, 1600)];
+    const at = (playhead: number) =>
+      words.map((word, index) => wordState(playhead, word, words[index - 1], words[index + 1]).phase);
+    expect(at(900)).toEqual(['settled', 'settled', 'active', 'hidden']);
+    expect(at(1100)).toEqual(['settled', 'settled', 'active', 'ghost']);
+    expect(at(1150)).toEqual(['settled', 'settled', 'active', 'ghost']);
+  });
+
+  it('hides every word past the ghost', () => {
+    const words = [timing(0, 400), timing(400, 800), timing(800, 1200)];
+    const at = (playhead: number) =>
+      words.map((word, index) => wordState(playhead, word, words[index - 1], words[index + 1]).phase);
+    expect(at(500)).toEqual(['settled', 'active', 'hidden']);
+    expect(at(650)).toEqual(['settled', 'active', 'ghost']);
+  });
+});
+
 describe('threadAt', () => {
   const track = 'paper lanterns|the invented';
 
@@ -155,7 +229,10 @@ describe('threadAt', () => {
     const at = (positionMs: number) =>
       threadAt({ lines, activeIndex: 0, positionMs, playing: true, trackKey: track });
 
-    expect(at(-1).items).toHaveLength(0);
+    expect(at(-151).items).toHaveLength(0);
+    // The first word ghosts in a beat early, so the bubble exists before its start.
+    expect(at(-40).items).toHaveLength(1);
+    expect(at(-40).items[0].revealed).toBe(0);
     expect(at(0).items[0].revealed).toBe(1);
     expect(at(999).items[0].revealed).toBe(1);
     expect(at(1000).items[0].revealed).toBe(2);

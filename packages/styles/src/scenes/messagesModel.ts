@@ -192,6 +192,81 @@ export function phrasesOfLine(
   });
 }
 
+/** How far ahead of its timestamp a word waits as a ghost. */
+export const GHOST_LEAD_MS = 150;
+/** A pop never gives up sooner than this, so fast delivery stays readable. */
+export const MIN_HOLD_MS = 180;
+/** Words closer than this drop the ghost and use a shorter, tighter pop. */
+export const FAST_WORD_MS = 90;
+/** A word sung for longer than this keeps pulsing while it is active. */
+export const HELD_WORD_MS = 700;
+
+export type WordPhase = 'hidden' | 'ghost' | 'active' | 'settled';
+
+export interface WordTiming {
+  startMs: number;
+  endMs: number;
+}
+
+export interface WordState {
+  phase: WordPhase;
+  /** Milliseconds from the ghost appearing to the word being sung. */
+  leadMs: number;
+  /** When the pop lets go and the word settles. */
+  settleAtMs: number;
+  /** Words delivered in a burst: no ghost, tighter pop. */
+  fast: boolean;
+  /** Long word: the pop keeps pulsing until it ends. */
+  held: boolean;
+}
+
+/**
+ * The three-phase word animation, derived from the playhead alone so seeks,
+ * pauses and resumes always land on the right phase.
+ *
+ * hidden -> ghost (lead window) -> active (start .. settle) -> settled.
+ * A word settles when the next one starts or when it ends, whichever comes
+ * first, but never before a minimum hold.
+ */
+export function wordState(
+  playhead: number,
+  word: WordTiming,
+  prevWord?: WordTiming,
+  nextWord?: WordTiming,
+): WordState {
+  const duration = Math.max(0, word.endMs - word.startMs);
+  const prevDuration = prevWord ? Math.max(0, prevWord.endMs - prevWord.startMs) : 0;
+  const fast = prevWord ? word.startMs - prevWord.startMs < FAST_WORD_MS : false;
+  const held = duration > HELD_WORD_MS;
+
+  const leadMs = fast
+    ? 0
+    : prevWord
+      ? Math.min(GHOST_LEAD_MS, prevDuration * 0.5)
+      : GHOST_LEAD_MS;
+
+  const ghostFromMs = fast
+    ? word.startMs
+    : Math.max(prevWord?.startMs ?? -Infinity, word.startMs - leadMs);
+
+  const naturalEnd = Math.min(
+    nextWord ? nextWord.startMs : Infinity,
+    word.endMs > word.startMs ? word.endMs : word.startMs + MIN_HOLD_MS,
+  );
+  const settleAtMs = Math.max(word.startMs + MIN_HOLD_MS, naturalEnd);
+
+  const phase: WordPhase =
+    playhead < ghostFromMs
+      ? 'hidden'
+      : playhead < word.startMs
+        ? 'ghost'
+        : playhead < settleAtMs
+          ? 'active'
+          : 'settled';
+
+  return { phase, leadMs, settleAtMs, fast, held };
+}
+
 const longestWord = (phrase: Phrase, revealed: number): number => {
   let best = -1;
   let bestLength = -1;
@@ -240,7 +315,8 @@ export function threadAt(input: ThreadInput): Thread {
       if (word.startMs <= positionMs) revealed += 1;
       else break;
     }
-    if (revealed === 0) continue;
+    // A phrase appears a beat early so its first word can ghost in.
+    if (revealed === 0 && positionMs < phrase.words[0].startMs - GHOST_LEAD_MS) continue;
     const complete = revealed === phrase.words.length;
     items.push({
       phrase,

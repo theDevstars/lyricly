@@ -724,6 +724,31 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
           </label>
 
           <label className="field">
+            <span>Messages word animation</span>
+            <select
+              value={styleOption('messages.wordAnimation') ?? 'ghost-pop'}
+              onChange={(event) => commitStyleOption('messages.wordAnimation', event.target.value)}
+            >
+              <option value="ghost-pop">Ghost + Pop (default)</option>
+              <option value="pop-only">Pop only</option>
+              <option value="fade">Fade only</option>
+              <option value="off">Off</option>
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Messages pop intensity</span>
+            <select
+              value={styleOption('messages.popIntensity') ?? 'normal'}
+              onChange={(event) => commitStyleOption('messages.popIntensity', event.target.value)}
+            >
+              <option value="subtle">Subtle · 118%</option>
+              <option value="normal">Normal · 134%</option>
+              <option value="strong">Strong · 152%</option>
+            </select>
+          </label>
+
+          <label className="field">
             <span>Dual Screen Split pane</span>
             <select
               value={String(styleOption('dual-screen-split.pane') ?? 'both')}
