@@ -192,6 +192,64 @@ describe('Messages rendering', () => {
     expect(painted(calm.fake).filter((text) => words.includes(text))).toHaveLength(0);
   });
 
+  it('never lets a pop cross the bubble edge at any intensity', () => {
+    const phrase = 'we count the extraordinary';
+    const line = lineFrom(phrase, 0, 700);
+    const last = line.words[line.words.length - 1];
+
+    for (const popIntensity of ['subtle', 'normal', 'strong']) {
+      for (let positionMs = last.startMs - 40; positionMs <= last.startMs + 320; positionMs += 20) {
+        const fake = new FakeContext();
+        let bubble = { x: 0, width: Infinity };
+        let lastRect = { x: 0, width: 0 };
+        let tx = 0;
+        let sx = 1;
+        const stack: { tx: number; sx: number }[] = [];
+
+        const proxy = new Proxy(fake, {
+          get(target, prop) {
+            if (prop === 'translate') return (x: number) => {
+              tx += x * sx;
+            };
+            if (prop === 'scale') return (x: number) => {
+              sx *= x;
+            };
+            if (prop === 'save') return () => stack.push({ tx, sx });
+            if (prop === 'restore') return () => {
+              const saved = stack.pop();
+              if (saved) ({ tx, sx } = saved);
+            };
+            if (prop === 'roundRect') return (x: number, _y: number, width: number) => {
+              lastRect = { x, width };
+            };
+            if (prop === 'fill') return () => {
+              // The bubble is the last roundRect filled with the bubble colour.
+              if (String(target.fillStyle) !== '#ffffff' && lastRect.width > 0) bubble = lastRect;
+            };
+            if (prop === 'fillText') return (text: string) => {
+              const width = target.measureText(text).width * sx;
+              const right = tx + width;
+              expect(right).toBeLessThanOrEqual(bubble.x + bubble.width + 0.5);
+            };
+            const value = Reflect.get(target, prop);
+            return typeof value === 'function' ? value.bind(target) : value;
+          },
+          set(target, prop, value) {
+            Reflect.set(target, prop, value);
+            return true;
+          },
+        });
+
+        messages.render(
+          asContext(proxy as unknown as FakeContext),
+          stateOf({ lines: [line], activeIndex: 0, positionMs, styleOptions: { popIntensity } }),
+        );
+        // Guard: the bubble rect must have been captured, or the check is blind.
+        expect(bubble.width).toBeLessThan(10_000);
+      }
+    }
+  });
+
   it('keeps every bubble inside the stage at 1280x720 and 1920x1080', () => {
     for (const [width, height] of [
       [1280, 720],

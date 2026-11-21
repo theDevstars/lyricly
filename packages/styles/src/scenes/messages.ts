@@ -23,6 +23,29 @@ const MAX_ITEMS = 12;
 
 /** Pop size by intensity. Deliberately bigger than a polite 1.25. */
 const POP_SCALE: Record<string, number> = { subtle: 1.18, normal: 1.34, strong: 1.52 };
+/** Peak of easeOutBack with the spring below: the pop overshoots its target. */
+const SPRING = 2.6;
+const POP_PEAK = 1.2;
+
+/** The size a pop actually reaches at its overshoot, for this intensity. */
+export function popPeak(pop: number): number {
+  return 0.6 + (pop - 0.6) * POP_PEAK;
+}
+
+/**
+ * A word grows rightward from its left baseline, so the end of each row needs
+ * room for the pop's overshoot or the bubble edge clips the last letters.
+ */
+export function popHeadroom(layout: PhraseLayout, pop: number): number {
+  const peak = popPeak(pop);
+  let overhang = 0;
+  layout.boxes.forEach((box, index) => {
+    const rowWidth = layout.rowWidths[layout.rowOf[index]] ?? box.x + box.width;
+    const spaceAfter = Math.max(0, rowWidth - (box.x + box.width));
+    overhang = Math.max(overhang, box.width * (peak - 1) - spaceAfter);
+  });
+  return Math.max(0, Math.ceil(overhang - PAD_X)) + 4;
+}
 const POP_MS = 190;
 const FAST_POP_MS = 120;
 const SETTLE_MS = 160;
@@ -35,7 +58,7 @@ const fontOf = (size: number, weight = 500): string =>
 const easeOut = (value: number): number => 1 - (1 - value) ** 3;
 /** Springy pop with real overshoot: energy, not a polite scale. */
 const easeOutBack = (value: number): number => {
-  const s = 3.6;
+  const s = SPRING;
   const p = value - 1;
   return 1 + (s + 1) * p * p * p + s * p * p;
 };
@@ -90,6 +113,8 @@ interface WordBox {
 interface PhraseLayout {
   boxes: WordBox[];
   rowOf: number[];
+  /** Rendered width of each row, for working out how far a pop can overshoot. */
+  rowWidths: number[];
   width: number;
   height: number;
 }
@@ -145,9 +170,16 @@ function layoutPhrase(
     widest = Math.max(widest, cursor);
   });
 
+  const rowWidths: number[] = [];
+  boxes.forEach((box, index) => {
+    const row = rowOf[index];
+    rowWidths[row] = Math.max(rowWidths[row] ?? 0, box.x + box.width);
+  });
+
   return {
     boxes,
     rowOf,
+    rowWidths,
     width: widest + PAD_X * 2,
     height: (row + 1) * fonts.lineHeight + PAD_Y * 2,
   };
@@ -462,7 +494,7 @@ export const messages: LyricStyle = {
 
     for (const item of items) {
       const layout = layoutPhrase(ctx, item.phrase.words, fonts, maxBubbleWidth - PAD_X * 2);
-      const bubbleWidth = Math.max(fontSize * 2.2, layout.width);
+      const bubbleWidth = Math.max(fontSize * 2.2, layout.width + popHeadroom(layout, pop));
       const bubbleHeight = Math.max(fontSize * 1.5, layout.height);
       const previous = entries[entries.length - 1];
       const gap =
@@ -566,14 +598,14 @@ export const messages: LyricStyle = {
         : 1;
       if (ringFade > 0.01) {
         ctx.save();
-        ctx.globalAlpha = bubbleAlpha * ringFade * 0.34;
+        ctx.globalAlpha = bubbleAlpha * ringFade * 0.5;
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1.5;
         if (!calm) {
-          ctx.shadowColor = 'rgba(255,255,255,0.45)';
-          ctx.shadowBlur = 10;
+          ctx.shadowColor = 'rgba(255,255,255,0.55)';
+          ctx.shadowBlur = 12;
         }
-        bubblePath(ctx, left - 6, drawTop - 6, bubbleWidth + 12, bubbleHeight + 12);
+        bubblePath(ctx, left - 7, drawTop - 7, bubbleWidth + 14, bubbleHeight + 14);
         ctx.stroke();
         ctx.restore();
       }
