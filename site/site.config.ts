@@ -79,7 +79,7 @@ const siteConfig = {
     windowsUrl: "/downloads/Lyrica-Setup-2.0.0.exe",
     fileName: "Lyrica-Setup-2.0.0.exe",
     /** SHA-256 of that exact file. Regenerate whenever you replace the installer. */
-    sha256: "ff19001934bb412f81ad3f0b87538bbd0b102a0fa488cd42b68ee9a81e8b0172",
+    sha256: "dd35d0e3f17268afb823b0841b118d579d9eaa7fc686f5d733fc680f142dba69",
     sizeLabel: "3.8 MB",
     /** Add a real public report before showing the link. */
     virusTotalUrl: "",
