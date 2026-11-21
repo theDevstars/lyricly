@@ -1745,9 +1745,24 @@ html[data-window^='scene'] #root {
   position: fixed;
   inset: 0;
   overflow: hidden;
+  /* Blend the lyric layer into the backdrop, not through the whole app. */
+  isolation: isolate;
   color: #eaf2ff;
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   letter-spacing: 0.01em;
+}
+
+/*
+ * The lyric style draws a solid black stage. Screen blending drops that black
+ * out, so the planet stays visible and only the type and bubbles light up.
+ */
+.scene-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  mix-blend-mode: screen;
+  pointer-events: none;
 }
 
 /* Procedural dark planet, so the demo ships no artwork of anyone's. */

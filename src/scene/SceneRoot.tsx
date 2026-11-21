@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getStyle } from '@lyrica/styles';
+import { StyleCanvas } from '../components/StyleCanvas';
 import type { Snapshot } from '../types';
 
 interface SceneRootProps {
@@ -15,6 +17,7 @@ interface SceneRootProps {
  */
 export function SceneRoot({ snapshot }: SceneRootProps) {
   const label = getCurrentWindow().label;
+  const style = getStyle(snapshot.settings.style);
   const [fps, setFps] = useState(0);
   const [seen, setSeen] = useState(0);
   const [visibility, setVisibility] = useState(document.visibilityState);
@@ -52,6 +55,11 @@ export function SceneRoot({ snapshot }: SceneRootProps) {
   return (
     <div className="scene-root">
       <div className="scene-planet" aria-hidden="true" />
+      {/* The style paints its own black stage; screen blending keeps the planet
+          behind it while the bubbles and type sit on top. */}
+      {snapshot.playback.title && (
+        <StyleCanvas snapshot={snapshot} style={style} className="style-canvas scene-canvas" />
+      )}
       <div className="scene-test-widget">
         <header>
           <span className="scene-eyebrow">Scene host · {label}</span>
