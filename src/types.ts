@@ -121,6 +121,10 @@ export interface Settings {
   rimLightColors: string;
   rimLightColorA: string;
   rimLightColorB: string;
+  /** "Mask a cutout": the glow dips around a camera notch. */
+  rimLightCutout: boolean;
+  rimLightCutoutWidth: number;
+  rimLightCutoutHeight: number;
   ciderEnabled: boolean;
   ciderHost: string;
   ciderPort: number;
@@ -190,8 +194,18 @@ export interface SpotifyStatus {
   error: string | null;
 }
 
+/** Colours lifted from the current cover, used by Auto Sync. */
+export interface ArtPalette {
+  /** Dominant, usually saturated colour of the artwork. */
+  accent: string;
+  /** Dominant neutral, usually the lightest area. */
+  dominant: string;
+}
+
 export interface Snapshot {
   playback: Playback;
+  /** Cover palette for Auto Sync; null when nothing has been extracted. */
+  artPalette?: ArtPalette | null;
   settings: Settings;
   lyrics: Lyrics | null;
   trackKey: string;

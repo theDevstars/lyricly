@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { StyleCanvas } from '../components/StyleCanvas';
 import {
   DEMO_ALBUM,
+  DEMO_ART_PALETTE,
   DEMO_ARTIST,
   DEMO_DURATION_MS,
   DEMO_LINES,
@@ -38,6 +39,7 @@ export function PreviewStage({ snapshot, style, demo, source }: PreviewStageProp
         durationMs: DEMO_DURATION_MS,
         sampledAtMs: Date.now(),
       },
+      artPalette: DEMO_ART_PALETTE,
       lyrics: {
         source: 'Demo',
         lines: DEMO_LINES,

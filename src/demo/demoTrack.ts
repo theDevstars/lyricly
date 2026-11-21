@@ -53,6 +53,12 @@ function build(): LyricLine[] {
 
 export const DEMO_LINES: LyricLine[] = build();
 
+/**
+ * Palette of the generated placeholder cover, standing in for album art so Auto
+ * Sync has something warm to work with in the demo. Invented, like the lyric.
+ */
+export const DEMO_ART_PALETTE = { accent: '#C98A3E', dominant: '#E9D9B4' } as const;
+
 export const DEMO_DURATION_MS =
   (DEMO_LINES[DEMO_LINES.length - 1]?.endMs ?? 20_000) + TAIL_MS;
 

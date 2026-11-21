@@ -116,7 +116,7 @@ export function StyleCanvas({
           artist: snapshot.playback.artist,
           app: snapshot.playback.app,
         },
-        palette: resolvePalette(activeStyle.palette, snapshot.settings),
+        palette: resolvePalette(activeStyle.palette, snapshot.settings, snapshot.artPalette),
         time: performance.now() - startedAt.current,
         width,
         height,

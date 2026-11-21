@@ -174,6 +174,10 @@ pub struct Settings {
     pub rim_light_colors: String,
     pub rim_light_color_a: String,
     pub rim_light_color_b: String,
+    /// "Mask a cutout": dip the glow around a camera notch.
+    pub rim_light_cutout: bool,
+    pub rim_light_cutout_width: u32,
+    pub rim_light_cutout_height: u32,
     /// Cider (cider.sh) as an additional player source.
     pub cider_enabled: bool,
     pub cider_host: String,
@@ -283,6 +287,9 @@ impl Default for Settings {
             rim_light_colors: "style".into(),
             rim_light_color_a: "#8EF0C9".into(),
             rim_light_color_b: "#FF5C7A".into(),
+            rim_light_cutout: false,
+            rim_light_cutout_width: 260,
+            rim_light_cutout_height: 34,
             cider_enabled: false,
             cider_host: "localhost".into(),
             cider_port: 10_767,

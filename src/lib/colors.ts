@@ -1,5 +1,5 @@
 import type { Palette } from '@lyrica/styles';
-import type { Settings } from '../types';
+import type { ArtPalette, Settings } from '../types';
 
 export interface Rgb {
   r: number;
@@ -63,13 +63,54 @@ export function mix(a: Rgb, b: Rgb, amount: number): Rgb {
   };
 }
 
+/** Adds alpha to a hex colour, for the dim slot the styles expect. */
+export function withAlpha(color: string, alpha: number): string {
+  const rgb = parseHex(color);
+  if (!rgb) return color;
+  return `rgba(${Math.round(rgb.r)},${Math.round(rgb.g)},${Math.round(rgb.b)},${alpha})`;
+}
+
 /**
- * Colours actually drawn: the style's own palette when Auto Sync is on (that is
- * where an album-art palette would land), otherwise the user's picks. Styles
- * that opt out of the theme keep their own colours whatever this returns.
+ * Palette from the current cover. The art colour is only a seed: text is
+ * lightened until it is AA on a black stage, and the accent keeps 3:1 because
+ * it is used for display type and glow.
  */
-export function resolvePalette(base: Palette, settings: Settings): Palette {
-  if (settings.colorAutoSync) return base;
+export function paletteFromArt(art: ArtPalette, base: Palette): Palette {
+  const accent = parseHex(art.accent);
+  const dominant = parseHex(art.dominant);
+  // A half-parsed cover is worse than none: keep the style's own palette.
+  if (!accent || !dominant) return base;
+
+  const text = ensureContrast(mix(dominant, { r: 255, g: 255, b: 255 }, 0.35), 4.5);
+  const highlight = ensureContrast(mix(accent, { r: 255, g: 255, b: 255 }, 0.18), 3);
+
+  return {
+    ...base,
+    accent: highlight,
+    text,
+    dim: withAlpha(text, 0.55),
+  };
+}
+
+function ensureContrast(rgb: Rgb, minimum: number): string {
+  let current = rgb;
+  for (let step = 0; step < 24 && contrastRatio(current, { r: 0, g: 0, b: 0 }) < minimum; step += 1) {
+    current = mix(current, { r: 255, g: 255, b: 255 }, 0.12);
+  }
+  return toHex(current);
+}
+
+/**
+ * Colours actually drawn: with Auto Sync on, the cover's palette (when the
+ * player supplied one); otherwise the style's own palette. Manual wells always
+ * win when Auto Sync is off.
+ */
+export function resolvePalette(
+  base: Palette,
+  settings: Settings,
+  art?: ArtPalette | null,
+): Palette {
+  if (settings.colorAutoSync) return art ? paletteFromArt(art, base) : base;
   return {
     ...base,
     accent: settings.colorHighlight || base.accent,

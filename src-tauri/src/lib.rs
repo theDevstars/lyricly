@@ -138,6 +138,8 @@ struct QolView {
 #[serde(rename_all = "camelCase")]
 struct Snapshot {
     playback: Playback,
+    /// Cover palette for Auto Sync; None until a player supplies artwork.
+    art_palette: Option<ArtPalette>,
     settings: Settings,
     lyrics: Option<Lyrics>,
     track_key: String,
@@ -151,6 +153,13 @@ struct Snapshot {
     qol: QolView,
     /// Live audio analysis; inactive when nothing is playing.
     audio: audio::analyze::AudioView,
+}
+
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ArtPalette {
+    accent: String,
+    dominant: String,
 }
 
 #[derive(serde::Serialize, Clone)]
@@ -189,6 +198,9 @@ fn snapshot(state: &Shared) -> Snapshot {
     let runtime = state.runtime.lock().expect("runtime lock");
     Snapshot {
         playback: runtime.playback.clone(),
+        // Players only report metadata today, so Auto Sync falls back to each
+        // style's own palette until artwork extraction lands here.
+        art_palette: None,
         settings: runtime.settings.clone(),
         lyrics: runtime.lyrics.clone(),
         track_key: runtime.track_key.clone(),

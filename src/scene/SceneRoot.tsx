@@ -20,7 +20,7 @@ interface SceneRootProps {
 export function SceneRoot({ snapshot }: SceneRootProps) {
   const label = getCurrentWindow().label;
   const style = getStyle(snapshot.settings.style);
-  const palette = resolvePalette(style.palette, snapshot.settings);
+  const palette = resolvePalette(style.palette, snapshot.settings, snapshot.artPalette);
   // Dark stages screen away so their black drops out; light paper stages float
   // as an inset page so the ink stays readable. The planet survives both ways.
   const layer = sceneLayerFor(palette.background);

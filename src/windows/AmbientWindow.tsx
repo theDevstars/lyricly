@@ -1,8 +1,9 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import type { Snapshot } from '../types';
 import { getStyle } from '@lyrica/styles';
 import { StyleCanvas } from '../components/StyleCanvas';
+import { RimGlow } from '../components/RimGlow';
 import { resolvePalette } from '../lib/colors';
 
 interface AmbientWindowProps {
@@ -15,16 +16,10 @@ const SLEEP_FADE_MS = 1400;
 /** Full-bleed, click-through lyric layer for the chosen monitor. */
 export function AmbientWindow({ snapshot }: AmbientWindowProps) {
   const style = getStyle(snapshot.settings.style);
-  const palette = resolvePalette(style.palette, snapshot.settings);
+  const palette = resolvePalette(style.palette, snapshot.settings, snapshot.artPalette);
   const [fading, setFading] = useState(false);
 
   const custom = snapshot.settings.rimLightColors === 'custom';
-  const rimStyle = {
-    '--rim-a': custom ? snapshot.settings.rimLightColorA : palette.accent,
-    '--rim-b': custom ? snapshot.settings.rimLightColorB : palette.text,
-    '--rim-width': `${snapshot.settings.rimLightThickness}px`,
-    '--rim-glow': snapshot.settings.rimLightGlow,
-  } as CSSProperties;
 
   // The sleep timer asks for a fade before the window closes.
   useEffect(() => {
@@ -46,8 +41,7 @@ export function AmbientWindow({ snapshot }: AmbientWindowProps) {
     <div
       className={`ambient-frame ${fading ? 'qol-fade' : ''} ${
         snapshot.qol.dimAmbient ? 'qol-warm' : ''
-      }`}
-      style={rimStyle}
+      }`      }
     >
       {/* The styles draw their own "play something" line, which would sit under
           our idle text; with no track there is nothing for the canvas to show. */}
@@ -55,10 +49,17 @@ export function AmbientWindow({ snapshot }: AmbientWindowProps) {
         <StyleCanvas snapshot={snapshot} style={style} className="style-canvas" />
       )}
       {snapshot.settings.rimLightEnabled && (
-        <div
-          className="rim-light"
-          data-anim={snapshot.settings.rimLightAnimation}
-          aria-hidden="true"
+        <RimGlow
+          thickness={snapshot.settings.rimLightThickness}
+          glow={snapshot.settings.rimLightGlow}
+          animation={snapshot.settings.rimLightAnimation}
+          colorA={custom ? snapshot.settings.rimLightColorA : palette.accent}
+          colorB={custom ? snapshot.settings.rimLightColorB : palette.text}
+          cutout={snapshot.settings.rimLightCutout}
+          cutoutWidth={snapshot.settings.rimLightCutoutWidth}
+          cutoutHeight={snapshot.settings.rimLightCutoutHeight}
+          beat={Boolean(snapshot.audio?.beat)}
+          reduceMotion={snapshot.settings.reduceMotion}
         />
       )}
       {!snapshot.playback.title && (

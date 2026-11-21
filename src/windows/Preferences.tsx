@@ -1151,6 +1151,46 @@ export function Preferences({ snapshot, onClose }: PreferencesProps) {
             </select>
           </label>
 
+          <div className="toggle-row">
+            <div>
+              <span>Mask a cutout</span>
+              <small>The glow dips around a camera notch with rounded inner corners</small>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={draft.rimLightCutout}
+                onChange={(event) => commit({ rimLightCutout: event.target.checked })}
+              />
+              <i />
+            </label>
+          </div>
+
+          {draft.rimLightCutout && (
+            <label className="field field-wide">
+              <span>Cutout size</span>
+              <div className="rim-colors">
+                <input
+                  type="number"
+                  min={40}
+                  max={900}
+                  value={draft.rimLightCutoutWidth}
+                  onChange={(event) => commit({ rimLightCutoutWidth: Number(event.target.value) })}
+                  aria-label="Cutout width in pixels"
+                />
+                <input
+                  type="number"
+                  min={8}
+                  max={200}
+                  value={draft.rimLightCutoutHeight}
+                  onChange={(event) => commit({ rimLightCutoutHeight: Number(event.target.value) })}
+                  aria-label="Cutout height in pixels"
+                />
+                <small>width × height in pixels</small>
+              </div>
+            </label>
+          )}
+
           {draft.rimLightColors === 'custom' && (
             <label className="field field-wide">
               <span>Two colours</span>
