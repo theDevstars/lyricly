@@ -11,7 +11,7 @@ export const faqItems: FaqItem[] = [
     category: "Getting started",
     question: "What does Lyrica do?",
     answer:
-      "Lyrica is a small Windows tray app that puts the lyrics of whatever you are playing on your screen, timed to the song. It reads the now-playing track from Windows' own media controls, so Spotify, Apple Music, Cider, Media Player and most browsers work without any account or integration. Lyrics run in animated styles, from moving type to phone-style screens, and can glow around the edges of your display with Rim Light.",
+      "Lyrica is a small Windows tray app that puts the lyrics of whatever you are playing on your screen, timed to the song. It reads the now-playing track from Windows' own media controls, so Spotify, Apple Music, Cider, Media Player and most browsers work without any account or integration. Lyrics run in animated styles, from moving type to phone-style screens, and each monitor can run a different one.",
   },
   {
     slug: "what-are-the-system-requirements",
@@ -95,7 +95,7 @@ export const faqItems: FaqItem[] = [
     category: "Desktop",
     question: "Does it work on external displays?",
     answer:
-      "Yes. Open the display controls and choose which monitor gets the overlay. You can set a different style per display, and Rim Light can follow the same monitor or all displays. If a monitor is unplugged, Lyrica keeps the window position for when it returns.",
+      "Yes. Open the display controls and choose which monitor gets the overlay. You can set a different style per display, and the ambient screen can take over whichever monitor you choose. If a monitor is unplugged, Lyrica keeps the window position for when it returns.",
   },
   {
     slug: "how-does-hiding-from-screen-capture-work",

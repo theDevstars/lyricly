@@ -129,17 +129,7 @@ export default function Playground({ compact = false, initialStyle }: Props) {
   return (
     <div className={`playground ${compact ? "playground-compact" : ""}`}>
       <div className="playground-stage-column">
-        <div
-          className={`playground-stage ${state.glow ? "is-glowing" : ""}`}
-          style={
-            state.glow
-              ? {
-                  boxShadow: `0 0 ${state.thickness * 2.2}px ${state.glowColor}66, 0 0 ${state.thickness}px ${state.glowColor}55`,
-                }
-              : undefined
-          }
-          data-backdrop={state.backdrop}
-        >
+        <div className="playground-stage" data-backdrop={state.backdrop}>
           <div className="playground-stage-art" aria-hidden="true" />
           <StyleCanvas
             key={`${selected.slug}-${state.font}-${state.autoSync}`}
@@ -202,7 +192,7 @@ export default function Playground({ compact = false, initialStyle }: Props) {
               Share this look
             </button>
             <span className="playground-share-status" role="status" aria-live="polite">{copied}</span>
-            <a href="/faq" className="text-xs text-muted transition-colors hover:text-white">Why are lyrics missing?</a>
+            <a href="/faq" className="text-xs text-muted transition-colors hover:text-text">Why are lyrics missing?</a>
           </div>
         )}
       </div>
@@ -238,7 +228,7 @@ export default function Playground({ compact = false, initialStyle }: Props) {
                   >
                     <span className="playground-swatch" style={{ background: style.gradient }} aria-hidden="true" />
                     <span className="min-w-0">
-                      <span className="block truncate text-[0.8rem] font-medium text-white">{style.name}</span>
+                      <span className="block truncate text-[0.8rem] font-medium text-text">{style.name}</span>
                       <span className="block truncate text-[0.68rem] text-muted">{style.description}</span>
                     </span>
                   </button>
@@ -311,16 +301,6 @@ export default function Playground({ compact = false, initialStyle }: Props) {
                 {selected.background === "own" && <span className="playground-hint">This style paints its own scene.</span>}
               </label>
 
-              <div className="playground-control">
-                <span className="playground-label">Edge glow</span>
-                <div className="playground-toggle-row">
-                  <button type="button" className="playground-toggle" aria-pressed={state.glow} onClick={() => update({ glow: !state.glow })}>
-                    {state.glow ? "On" : "Off"}
-                  </button>
-                  <input type="color" value={state.glowColor} onChange={(event) => update({ glowColor: event.target.value })} aria-label="Edge glow color" />
-                  <input type="range" min="0" max="48" step="1" value={state.thickness} onChange={(event) => update({ thickness: Number(event.target.value) })} aria-label="Edge glow thickness" className="playground-range" />
-                </div>
-              </div>
             </div>
           </>
         )}

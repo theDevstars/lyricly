@@ -55,7 +55,7 @@ export const setups: SetupEntry[] = [
   {
     id: "night-drive",
     title: "Night drive",
-    caption: "Tunnel on the centre screen, with Rim Light carrying the side displays.",
+    caption: "Tunnel on the centre screen, with a quieter style on each side display.",
     style: "Tunnel",
     player: "Spotify",
     screens: 3,

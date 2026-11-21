@@ -11,7 +11,7 @@ const siteConfig = {
   wordmark: "Lyrica",
   tagline: "Time-synced lyrics for your Windows desktop.",
   description:
-    "Lyrica is a Windows tray app that shows time-synced lyrics from Spotify, Apple Music and Cider in animated styles, with ambient Rim Light. Free; a Discord account is required to download.",
+    "Lyrica is a Windows tray app that shows time-synced lyrics from Spotify, Apple Music and Cider in animated styles, one per display. Free; a Discord account is required to download.",
 
   /** Canonical origin. Also used for the sitemap, RSS and social cards. */
   url: "https://lyrica-avh2b6.freebuff.site",
@@ -43,7 +43,7 @@ const siteConfig = {
     },
     includes: [
       "Every current and future style",
-      "Rim Light, Desktop Scene and Stream window",
+      "Desktop Scene and Stream window",
       "Updates delivered through the app",
       "No subscription and no in-app ads",
     ],
@@ -79,7 +79,7 @@ const siteConfig = {
     windowsUrl: "/downloads/Lyrica-Setup-2.0.0.exe",
     fileName: "Lyrica-Setup-2.0.0.exe",
     /** SHA-256 of that exact file. Regenerate whenever you replace the installer. */
-    sha256: "e230a668a77293b608dd2e27bcfab12321a57744a61f7b2305b36945451a7bb3",
+    sha256: "cb2e64e7ecf853ab21c3858b1ea825265faa1eb2e56daa0a6898451478c225e5",
     sizeLabel: "3.8 MB",
     /** Add a real public report before showing the link. */
     virusTotalUrl: "",
@@ -100,7 +100,7 @@ const siteConfig = {
   announcement: {
     enabled: true,
     label: "New in 2.0",
-    text: "New styles, player status and Rim Light.",
+    text: "New styles, player status and Desktop Scene.",
     href: "/changelog",
     cta: "See what changed",
   },

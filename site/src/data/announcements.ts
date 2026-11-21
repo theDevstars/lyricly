@@ -19,8 +19,8 @@ export const announcements: Announcement[] = [
   {
     id: "desktop-scene",
     date: "November 12, 2026",
-    title: "Desktop Scene and Rim Light are in 2.0",
-    body: "A full desktop lyric layer, ambient edge glow, a player status panel and a stream-safe window.",
+    title: "Desktop Scene is in 2.0",
+    body: "A full desktop lyric layer, a player status panel and a stream-safe window.",
     href: "/changelog",
     tag: "Release",
   },

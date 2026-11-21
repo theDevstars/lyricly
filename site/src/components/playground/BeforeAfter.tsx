@@ -12,12 +12,12 @@ export default function BeforeAfter() {
             <p className="eyebrow">Desktop Scene</p>
             <h2 id="beforeafter-title" className="section-title mt-3.5">The same desk, with the lights on.</h2>
             <p className="lead mt-4">
-              Drag the divider. On the left is a plain desktop; on the right, Desktop Scene and Rim
-              Light add the words and a glow that follows the edges of the display.
+              Drag the divider. On the left is a plain desktop; on the right, Desktop Scene puts
+              the words on the wallpaper and lights the rest of the screen around them.
             </p>
             <div className="mt-5 flex flex-wrap gap-2 text-xs text-muted">
               <span className="brand-pill">Plain desktop</span>
-              <span className="brand-pill">Desktop Scene + Rim Light</span>
+              <span className="brand-pill">Desktop Scene</span>
             </div>
           </div>
 
@@ -60,7 +60,7 @@ export default function BeforeAfter() {
               value={split}
               onChange={(event) => setSplit(Number(event.target.value))}
               className="ba-range"
-              aria-label="Reveal Desktop Scene and Rim Light over the plain desktop"
+              aria-label="Reveal Desktop Scene over the plain desktop"
               aria-valuetext={`${split}% Desktop Scene`}
             />
             <span className="ba-label ba-label-left">Plain</span>

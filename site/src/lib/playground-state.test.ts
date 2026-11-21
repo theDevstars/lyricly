@@ -15,17 +15,14 @@ describe("playground URL state", () => {
       text: "#ffeedd",
       autoSync: false,
       backdrop: "blur" as const,
-      glow: false,
-      thickness: 30,
       position: 4200,
     };
     expect(decodePlaygroundState(`?${encodePlaygroundState(state)}`)).toEqual(state);
   });
 
-  it("clamps size, thickness and position to safe values", () => {
-    const state = decodePlaygroundState("?size=9&thickness=-4&t=999999");
+  it("clamps size and position to safe values", () => {
+    const state = decodePlaygroundState("?size=9&t=999999");
     expect(state.size).toBe(1.6);
-    expect(state.thickness).toBe(0);
     expect(state.position).toBe(60_000);
   });
 

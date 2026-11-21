@@ -31,7 +31,7 @@ export const localizedHome: Record<Exclude<Locale, "en">, LocalizedHome> = {
     benefits: [
       { title: "Sin cuenta en la app", copy: "La aplicación no pide cuenta ni contraseña. Solo el sitio usa Discord para entregar el instalador y una clave gratuita." },
       { title: "Cualquier reproductor de Windows", copy: "Lee la sesión multimedia que Windows ya expone: Spotify, Apple Music, Cider, VLC o el navegador." },
-      { title: "Tus colores, tu pantalla", copy: "Un estilo por monitor, un desplazamiento fino y Rim Light para iluminar el borde de la pantalla." },
+      { title: "Tus colores, tu pantalla", copy: "Un estilo por monitor, un desplazamiento fino y los colores del disco en los textos." },
     ],
     sectionTitle: "La misma aplicación, en tu idioma.",
     sectionLead:
@@ -53,7 +53,7 @@ export const localizedHome: Record<Exclude<Locale, "en">, LocalizedHome> = {
     benefits: [
       { title: "Sem conta no aplicativo", copy: "O app não pede conta nem senha. Só o site usa Discord para liberar o instalador e uma chave gratuita." },
       { title: "Qualquer player do Windows", copy: "Lê a sessão de mídia que o Windows já expõe: Spotify, Apple Music, Cider, VLC ou o navegador." },
-      { title: "Suas cores, sua tela", copy: "Um estilo por monitor, ajuste fino de atraso e Rim Light para iluminar a borda da tela." },
+      { title: "Suas cores, sua tela", copy: "Um estilo por monitor, ajuste fino de atraso e as cores da capa nos textos." },
     ],
     sectionTitle: "O mesmo aplicativo, no seu idioma.",
     sectionLead:
@@ -75,7 +75,7 @@ export const localizedHome: Record<Exclude<Locale, "en">, LocalizedHome> = {
     benefits: [
       { title: "Kein Konto in der App", copy: "Die App fragt weder nach Konto noch Passwort. Nur die Website nutzt Discord für Installer und einen kostenlosen Schlüssel." },
       { title: "Jeder Windows-Player", copy: "Gelesen wird die Mediensitzung, die Windows ohnehin bereitstellt: Spotify, Apple Music, Cider, VLC oder der Browser." },
-      { title: "Deine Farben, dein Bildschirm", copy: "Ein Stil pro Monitor, Feinjustierung der Timing-Abweichung und Rim Light für den Bildschirmrand." },
+      { title: "Deine Farben, dein Bildschirm", copy: "Ein Stil pro Monitor, Feinjustierung der Timing-Abweichung und die Farben des Covers in den Texten." },
     ],
     sectionTitle: "Dieselbe App, in deiner Sprache.",
     sectionLead:
@@ -97,7 +97,7 @@ export const localizedHome: Record<Exclude<Locale, "en">, LocalizedHome> = {
     benefits: [
       { title: "アプリにアカウント不要", copy: "アプリはアカウントもパスワードも求めません。Discord を使うのは、インストーラーと無料キーを配布するこのサイトだけです。" },
       { title: "Windows のどのプレイヤーでも", copy: "Windows が公開しているメディア セッションを読み取ります。Spotify、Apple Music、Cider、VLC、ブラウザーに対応。" },
-      { title: "色も画面も自由に", copy: "モニターごとにスタイルを設定し、タイミングを微調整。Rim Light で画面の縁を照らせます。" },
+      { title: "色も画面も自由に", copy: "モニターごとにスタイルを設定し、タイミングを微調整。ジャケットの色が歌詞に反映されます。" },
     ],
     sectionTitle: "同じアプリを、あなたの言語で。",
     sectionLead:

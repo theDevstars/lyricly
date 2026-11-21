@@ -53,14 +53,6 @@ export const roadmapItems: RoadmapItem[] = [
     tag: "Site",
   },
   {
-    id: "rim-light",
-    title: "Rim Light",
-    description: "Two-color ambient edge glow with gradient, animation, thickness and per-display controls.",
-    status: "shipped",
-    tag: "Feature",
-    version: "2.0",
-  },
-  {
     id: "desktop-scene",
     title: "Desktop Scene",
     description: "Lyrics and atmosphere on the desktop, separate from the compact overlay.",

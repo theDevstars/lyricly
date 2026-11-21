@@ -73,12 +73,11 @@ export const docs: DocTopic[] = [
     summary: "The default shortcuts and how to change them.",
     body: [
       "Hotkeys are global, so they work while another app has focus. Open Settings and click the shortcut field, then press the combination you want. Use something that does not collide with your player or game.",
-      "The default show-and-hide shortcut is Ctrl+Alt+L. Rim Light and Desktop Scene have their own optional shortcuts, both off until you set them.",
+      "The default show-and-hide shortcut is Ctrl+Alt+L. Desktop Scene and the Stream window have their own optional shortcuts, both off until you set them.",
     ],
     bullets: [
       "Show or hide lyrics: Ctrl+Alt+L.",
       "Nudge lyrics earlier or later: use the on-screen controls.",
-      "Rim Light: unset by default.",
       "Stream window: unset by default.",
     ],
   },
@@ -105,6 +104,5 @@ export const shortcutSheet = [
   { keys: "Ctrl + Alt + Left", action: "Nudge lyrics 100 ms earlier (where enabled)" },
   { keys: "Ctrl + Alt + Right", action: "Nudge lyrics 100 ms later (where enabled)" },
   { keys: "Ctrl + Alt + S", action: "Open the Stream window (where enabled)" },
-  { keys: "Ctrl + Alt + R", action: "Toggle Rim Light (where enabled)" },
   { keys: "Esc", action: "Close the command palette or a dialog" },
 ];

@@ -8,9 +8,6 @@ export type PlaygroundState = {
   autoSync: boolean;
   cover: string;
   backdrop: "black" | "blur" | "gradient";
-  glow: boolean;
-  glowColor: string;
-  thickness: number;
   position: number;
 };
 
@@ -30,9 +27,6 @@ export const DEFAULT_PLAYGROUND: PlaygroundState = {
   autoSync: true,
   cover: "lanterns",
   backdrop: "black",
-  glow: true,
-  glowColor: "#ff5c8a",
-  thickness: 22,
   position: 1800,
 };
 
@@ -45,7 +39,6 @@ export function decodePlaygroundState(search: string): PlaygroundState {
   const font = params.get("font");
   const position = Number(params.get("t"));
   const size = Number(params.get("size"));
-  const thickness = Number(params.get("thickness"));
 
   return {
     style: params.get("style") || DEFAULT_PLAYGROUND.style,
@@ -58,11 +51,6 @@ export function decodePlaygroundState(search: string): PlaygroundState {
     cover: params.get("cover") || DEFAULT_PLAYGROUND.cover,
     backdrop:
       backdrop === "blur" || backdrop === "gradient" ? backdrop : DEFAULT_PLAYGROUND.backdrop,
-    glow: params.get("glow") !== "0",
-    glowColor: hex(params.get("glowColor"), DEFAULT_PLAYGROUND.glowColor),
-    thickness: Number.isFinite(thickness)
-      ? Math.min(48, Math.max(0, thickness))
-      : DEFAULT_PLAYGROUND.thickness,
     position: Number.isFinite(position)
       ? Math.min(60_000, Math.max(0, position))
       : DEFAULT_PLAYGROUND.position,
@@ -80,9 +68,6 @@ export function encodePlaygroundState(state: PlaygroundState): string {
   params.set("auto", state.autoSync ? "1" : "0");
   params.set("cover", state.cover);
   params.set("backdrop", state.backdrop);
-  params.set("glow", state.glow ? "1" : "0");
-  params.set("glowColor", state.glowColor.replace("#", ""));
-  params.set("thickness", String(Math.round(state.thickness)));
   params.set("t", String(Math.round(state.position)));
   return params.toString();
 }

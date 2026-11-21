@@ -46,12 +46,6 @@ export const compareRows: CompareRow[] = [
     values: { lyrica: "yes", flyout: "no", widgets: "partial", others: "partial" },
   },
   {
-    feature: "Edge lighting",
-    detail: "Ambient glow around the display edge",
-    values: { lyrica: "yes", flyout: "no", widgets: "partial", others: "partial" },
-    note: "Rim Light is built into Lyrica; other tools may rely on separate lighting software.",
-  },
-  {
     feature: "Ambient screen",
     detail: "A full-screen lyric mode for an idle display",
     values: { lyrica: "yes", flyout: "no", widgets: "no", others: "partial" },

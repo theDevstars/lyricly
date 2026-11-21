@@ -15,7 +15,7 @@ const starField = [
 ];
 
 const constellationNodes = [
-  [150, 300], [258, 196], [392, 250], [512, 130], [650, 206],
+  [150, 340], [258, 236], [392, 292], [512, 172], [650, 248],
 ];
 
 function routeFor(active: number) {
@@ -189,46 +189,69 @@ export function CodestyleScene({ lines, active }: SceneProps) {
   );
 }
 
+/**
+ * A whole phrase drawn as a star graph: every word gets a star, the links run in
+ * singing order, and the word being sung is set large under its own star. The
+ * graph never moves between words, which is the point of the style.
+ */
 export function ConstellationScene({ lines, active }: SceneProps) {
-  const current = lines[Math.max(0, active)];
-  const visibleNodes = constellationNodes.slice(0, active + 2);
+  const current = lines[Math.max(0, active)] ?? "";
+  const words = current.split(/\s+/).filter(Boolean).slice(0, constellationNodes.length);
+  const last = Math.max(0, words.length - 1);
+  const anchor = constellationNodes[last];
   return (
     <div className="scene scene-constellation">
       <svg viewBox="0 0 800 450" className="const-svg" aria-hidden="true">
         <g className="const-stars">
           {starField.map(([x, y, r], i) => (
-            <circle key={i} cx={x} cy={y} r={r} opacity={0.2 + ((i * 7) % 10) / 18} />
+            <circle key={i} cx={x} cy={y} r={r} opacity={0.16 + ((i * 7) % 10) / 26} />
           ))}
         </g>
         <g className="const-links">
-          {visibleNodes.slice(1).map((point, i) => {
-            const prev = visibleNodes[i];
+          {words.slice(1).map((_, i) => {
+            const from = constellationNodes[i];
+            const to = constellationNodes[i + 1];
             return (
               <line
-                key={`${point[0]}-${point[1]}`}
-                x1={prev[0]}
-                y1={prev[1]}
-                x2={point[0]}
-                y2={point[1]}
+                key={`${active}-${i}`}
+                x1={from[0]}
+                y1={from[1]}
+                x2={to[0]}
+                y2={to[1]}
+                pathLength={1}
                 className="const-link"
+                style={{ "--i": i } as CSSProperties}
               />
             );
           })}
         </g>
         <g className="const-nodes">
-          {constellationNodes.map(([x, y], i) => (
-            <g key={`${x}-${y}`} data-on={i <= active + 1}>
-              <circle cx={x} cy={y} r={8} className="const-halo" />
-              <circle cx={x} cy={y} r={3.4} className="const-core" />
-            </g>
-          ))}
+          {words.map((word, i) => {
+            const [x, y] = constellationNodes[i];
+            const live = i === last;
+            return (
+              <g key={`${active}-${i}`} style={{ "--i": i } as CSSProperties}>
+                <circle cx={x} cy={y} r={live ? 16 : 10} className="const-halo" />
+                <circle cx={x} cy={y} r={live ? 3.4 : 2.6} className="const-core" />
+                {!live && (
+                  <text x={x} y={y + 19} className="const-word">
+                    {word}
+                  </text>
+                )}
+              </g>
+            );
+          })}
         </g>
+        <text
+          key={`${active}-${last}`}
+          x={anchor[0]}
+          y={anchor[1] + 46}
+          className="const-big"
+          textAnchor="middle"
+        >
+          {words[last]}
+        </text>
       </svg>
-      <div className="const-copy">
-        <p className="const-eyebrow">Paper Satellites · Nova Vale</p>
-        <p className="const-line" key={current}>{current}</p>
-        <p className="const-count">{String(active + 1).padStart(2, "0")} / 04</p>
-      </div>
     </div>
   );
 }

@@ -22,16 +22,6 @@ export const tutorials: Tutorial[] = [
     embedUrl: "",
   },
   {
-    id: "edge-glow",
-    title: "Rim Light in 40 seconds",
-    duration: "0:40",
-    description: "Set two colours, thickness and a gentle animation.",
-    chapters: ["Open Rim Light", "Pick two colours", "Set thickness", "Try a slow gradient"],
-    captions: "English captions are being reviewed. Rim Light settings are documented in Docs.",
-    art: ["#07151a", "#3fd6c8", "#102734"],
-    embedUrl: "",
-  },
-  {
     id: "desktop-scene",
     title: "Desktop Scene, start to finish",
     duration: "0:50",
