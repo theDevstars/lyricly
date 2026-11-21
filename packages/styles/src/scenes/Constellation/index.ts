@@ -8,7 +8,13 @@ import {
   transitionAmount,
   type Graph,
 } from './graphModel';
-import { layoutConstellation, seedFrom, type PlacedWord } from './constellationLayout';
+import {
+  layoutConstellation,
+  placeActiveLabel,
+  seedFrom,
+  type Box,
+  type PlacedWord,
+} from './constellationLayout';
 import { constellationColors, type ConstellationColors, type ConstellationVariant } from './palette';
 
 /**
@@ -21,6 +27,7 @@ const FAMILY = '"Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif';
 
 const GRAPH_CACHE = new WeakMap<LyricLine[], Graph[]>();
 const LAYOUT_CACHE = new Map<string, PlacedWord[]>();
+const ACTIVE_SLOT_CACHE = new Map<string, Box>();
 const MEASURE_CACHE = new Map<string, number>();
 const SPRITE_CACHE = new Map<string, HTMLCanvasElement>();
 
@@ -158,11 +165,12 @@ function drawFrame(
     bottom: Math.round(height * 0.14),
   };
 
+  // One layout per phrase: the active word is not part of the key, so no label
+  // moves while the song moves through the graph.
   const layoutKey = [
     graph.id,
     width,
     height,
-    activeIndex,
     Math.round(scale * 10),
     state.styleOptions?.['constellation.palette'] ?? 'warm',
   ].join('|');
@@ -174,27 +182,39 @@ function drawFrame(
       width: measure(ctx, word.text, labelSize, 600) + 4,
       height: labelSize * 1.5,
     }));
-    const activeWord = activeIndex >= 0 ? graph.words[activeIndex] : null;
-    const active = activeWord
-      ? {
-          width: measure(ctx, activeWord.text, activeSize, 900) + 8,
-          height: activeSize * 1.25,
-        }
-      : { width: 0, height: 0 };
 
     layout = layoutConstellation({
       width,
       height,
       seed: seedFrom(graph.id, 'constellation'),
       labels,
-      activeIndex,
-      active,
       margins,
     });
     LAYOUT_CACHE.set(layoutKey, layout);
     if (LAYOUT_CACHE.size > 24) {
       const oldest = LAYOUT_CACHE.keys().next().value;
       if (oldest) LAYOUT_CACHE.delete(oldest);
+    }
+  }
+
+  // The large word is placed into a free gap near its star; the labels stay put.
+  let activeSlot: Box | null = null;
+  if (activeIndex >= 0 && layout[activeIndex]) {
+    const slotKey = `${layoutKey}|slot|${activeIndex}`;
+    activeSlot = ACTIVE_SLOT_CACHE.get(slotKey) ?? null;
+    if (!activeSlot) {
+      const word = graph.words[activeIndex];
+      activeSlot = placeActiveLabel(
+        { x: layout[activeIndex].x, y: layout[activeIndex].y },
+        { width: measure(ctx, word.text, activeSize, 900) + 8, height: activeSize * 1.25 },
+        layout.map((node) => node.label),
+        { width, height, margins },
+      );
+      ACTIVE_SLOT_CACHE.set(slotKey, activeSlot);
+      if (ACTIVE_SLOT_CACHE.size > 48) {
+        const oldest = ACTIVE_SLOT_CACHE.keys().next().value;
+        if (oldest) ACTIVE_SLOT_CACHE.delete(oldest);
+      }
     }
   }
 
@@ -278,20 +298,10 @@ function drawFrame(
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    if (active) {
+    if (active && activeSlot) {
       ctx.font = fontOf(activeSize, 900, FAMILY);
       ctx.fillStyle = colors.bright;
-      const half = place.label.w / 2;
-      const x = Math.min(
-        Math.max(place.label.x + half, margins.left + half),
-        width - margins.right - half,
-      );
-      const halfHeight = place.label.h / 2;
-      const y = Math.min(
-        Math.max(place.label.y + halfHeight, margins.top + halfHeight),
-        height - margins.bottom - halfHeight,
-      );
-      ctx.fillText(word.text, x, y);
+      ctx.fillText(word.text, activeSlot.x + activeSlot.w / 2, activeSlot.y + activeSlot.h / 2);
     } else {
       ctx.font = fontOf(labelSize, 600, FAMILY);
       ctx.fillStyle = colors.label;
@@ -305,10 +315,9 @@ function drawFrame(
     const place = node(secondaryIndex);
     const view = words.words[secondaryIndex];
     if (place && view) {
-      const activePlace = words.activeIndex >= 0 ? node(words.activeIndex) : null;
-      const anchorX = activePlace ? activePlace.label.x + activePlace.label.w / 2 : place.x;
-      const anchorY = activePlace
-        ? activePlace.label.y + activePlace.label.h + secondarySize * 0.85
+      const anchorX = activeSlot ? activeSlot.x + activeSlot.w / 2 : place.x;
+      const anchorY = activeSlot
+        ? activeSlot.y + activeSlot.h + secondarySize * 0.85
         : place.label.y + place.label.h + secondarySize * 0.85;
       ctx.font = fontOf(secondarySize, 700, FAMILY);
       ctx.fillStyle = colors.label;

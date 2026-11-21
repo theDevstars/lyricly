@@ -2,6 +2,10 @@
  * Seeded placement for a constellation graph. Pure: text is measured by the
  * caller, so the same seed and the same measurements always give the same
  * graph, and tests can drive it without a canvas.
+ *
+ * A phrase is laid out once. Which word is being sung never moves a label: the
+ * big active word is placed into a free gap near its star at draw time with
+ * `placeActiveLabel`, so the graph stays still while the song moves through it.
  */
 
 export interface Box {
@@ -30,9 +34,6 @@ export interface LayoutInput {
   seed: number;
   /** Label boxes in singing order. */
   labels: LabelMeasure[];
-  activeIndex: number;
-  /** Measured box of the big active word. */
-  active: { width: number; height: number };
   margins: Margins;
 }
 
@@ -43,7 +44,12 @@ export interface PlacedWord {
   y: number;
   /** The label box, pushed clear of its neighbours; the star never moves. */
   label: Box;
-  active: boolean;
+}
+
+export interface Bounds {
+  width: number;
+  height: number;
+  margins: Margins;
 }
 
 /** Deterministic PRNG (mulberry32). */
@@ -84,14 +90,76 @@ function clampBox(box: Box, left: number, top: number, right: number, bottom: nu
   return { ...box, x, y };
 }
 
+/** Candidate boxes around a preferred spot: under, above, then rings outward. */
+function candidatesFor(base: Box): Box[] {
+  const step = Math.max(8, base.h * 0.9);
+  const list: Box[] = [{ ...base }];
+  for (let ring = 1; ring <= 6; ring += 1) {
+    const dy = step * ring;
+    const dx = Math.min(base.w, step * ring * 1.4);
+    list.push({ ...base, y: base.y + dy });
+    list.push({ ...base, y: base.y - dy });
+    list.push({ ...base, x: base.x + dx, y: base.y + dy });
+    list.push({ ...base, x: base.x - dx, y: base.y + dy });
+    list.push({ ...base, x: base.x + dx });
+    list.push({ ...base, x: base.x - dx });
+  }
+  return list;
+}
+
+/**
+ * The first candidate that clears every obstacle, else the one with the least
+ * overlap. Used for labels and for the big active word.
+ */
+export function placeWithoutOverlap(
+  base: Box,
+  obstacles: Box[],
+  bounds: Bounds,
+  gap = 6,
+): Box {
+  const left = bounds.margins.left;
+  const top = bounds.margins.top;
+  const right = bounds.width - bounds.margins.right;
+  const bottom = bounds.height - bounds.margins.bottom;
+
+  let best: Box | null = null;
+  let bestOverlap = Number.POSITIVE_INFINITY;
+  for (const raw of candidatesFor(base)) {
+    const candidate = clampBox(raw, left, top, right, bottom);
+    const overlap = obstacles.reduce((sum, other) => sum + overlapArea(candidate, other, gap), 0);
+    if (overlap === 0) return candidate;
+    if (overlap < bestOverlap) {
+      bestOverlap = overlap;
+      best = candidate;
+    }
+  }
+  return best ?? clampBox(base, left, top, right, bottom);
+}
+
+/** Where the large active word goes: a free gap near its star, on screen. */
+export function placeActiveLabel(
+  star: { x: number; y: number },
+  size: { width: number; height: number },
+  obstacles: Box[],
+  bounds: Bounds,
+  gap = 6,
+): Box {
+  const below: Box = {
+    x: star.x - size.width / 2,
+    y: star.y + 18,
+    w: size.width,
+    h: size.height,
+  };
+  return placeWithoutOverlap(below, obstacles, bounds, gap);
+}
+
 /**
  * Scattered nodes with collision-free labels. Nodes sit in the middle band of
- * the safe area on a jittered grid (uneven spacing, not a grid), a few pushed
- * out towards the edges; labels start under their star and are nudged until
- * nothing overlaps, including the big active word.
+ * the safe area on a shuffled, jittered grid, so consecutive words cross the
+ * graph and a half-built graph already looks scattered.
  */
 export function layoutConstellation(input: LayoutInput): PlacedWord[] {
-  const { width, height, labels, activeIndex, active, margins } = input;
+  const { width, height, labels, margins } = input;
   if (labels.length === 0) return [];
 
   const safe = {
@@ -145,67 +213,21 @@ export function layoutConstellation(input: LayoutInput): PlacedWord[] {
 
   const gap = 6;
   const boxes: Box[] = [];
-  const owners: number[] = [];
   const placed: PlacedWord[] = nodes.map((node) => ({
     key: node.key,
     x: node.x,
     y: node.y,
     label: { x: node.x, y: node.y, w: node.label.width, h: node.label.height },
-    active: false,
   }));
-
-  const candidatesFor = (base: Box): Box[] => {
-    const step = Math.max(8, base.h * 0.9);
-    const list: Box[] = [{ ...base }];
-    for (let ring = 1; ring <= 6; ring += 1) {
-      const dy = step * ring;
-      const dx = Math.min(base.w, step * ring * 1.4);
-      list.push({ ...base, y: base.y + dy });
-      list.push({ ...base, y: base.y - dy });
-      list.push({ ...base, x: base.x + dx, y: base.y + dy });
-      list.push({ ...base, x: base.x - dx, y: base.y + dy });
-      list.push({ ...base, x: base.x + dx });
-      list.push({ ...base, x: base.x - dx });
-    }
-    return list;
-  };
-
-  const resolve = (base: Box): Box => {
-    let best: Box | null = null;
-    let bestOverlap = Number.POSITIVE_INFINITY;
-    for (const raw of candidatesFor(base)) {
-      const candidate = clampBox(raw, safe.left, safe.top, safe.right, safe.bottom);
-      const overlap = boxes.reduce((sum, other) => sum + overlapArea(candidate, other, gap), 0);
-      if (overlap === 0) return candidate;
-      if (overlap < bestOverlap) {
-        bestOverlap = overlap;
-        best = candidate;
-      }
-    }
-    return best ?? base;
-  };
 
   const claim = (owner: number, box: Box) => {
     boxes.push(box);
-    owners.push(owner);
     placed[owner] = { ...placed[owner], label: box };
   };
 
-  // The big active word gets the first pick, so labels flow around it.
-  if (activeIndex >= 0 && nodes[activeIndex]) {
-    const node = nodes[activeIndex];
-    const under = {
-      x: node.x - active.width / 2,
-      y: node.y + 18,
-      w: active.width,
-      h: active.height,
-    };
-    claim(activeIndex, resolve(clampBox(under, safe.left, safe.top, safe.right, safe.bottom)));
-    placed[activeIndex] = { ...placed[activeIndex], active: true };
-  }
+  const bounds: Bounds = { width, height, margins };
 
   nodes.forEach((node, index) => {
-    if (index === activeIndex) return;
     const label = labels[index];
     const below = {
       x: node.x - label.width / 2,
@@ -215,7 +237,7 @@ export function layoutConstellation(input: LayoutInput): PlacedWord[] {
     };
     const above = { ...below, y: node.y - 10 - label.height };
     const preferred = below.y + label.height <= safe.bottom ? below : above;
-    claim(index, resolve(clampBox(preferred, safe.left, safe.top, safe.right, safe.bottom)));
+    claim(index, placeWithoutOverlap(preferred, boxes, bounds, gap));
   });
 
   // Final separation: if the candidate ring could not clear a box, push the two
@@ -244,8 +266,8 @@ export function layoutConstellation(input: LayoutInput): PlacedWord[] {
     if (!moved) break;
   }
 
-  owners.forEach((owner, position) => {
-    placed[owner] = { ...placed[owner], label: boxes[position] };
+  boxes.forEach((box, index) => {
+    placed[index] = { ...placed[index], label: box };
   });
 
   return placed;
