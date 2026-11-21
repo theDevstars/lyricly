@@ -934,20 +934,6 @@ pub fn handle_tray_event(app: &AppHandle, id: &str) {
         }
         return;
     }
-    if let Some(value) = id.strip_prefix(tray::ITEM_RIM_PREFIX) {
-        match value {
-            "toggle" => {
-                let on = {
-                    let state = app.state::<Shared>();
-                    let runtime = state.runtime.lock().expect("runtime lock");
-                    runtime.settings.rim_light_enabled
-                };
-                set_rim_light(app, Some(!on), None);
-            }
-            animation => set_rim_light(app, None, Some(animation.to_string())),
-        }
-        return;
-    }
     if let Some(value) = id.strip_prefix(tray::ITEM_DISPLAY_PREFIX) {
         if let Ok(index) = value.parse::<usize>() {
             set_display(app.clone(), index);
@@ -989,22 +975,6 @@ pub fn handle_tray_event(app: &AppHandle, id: &str) {
 
 /// Applies a Rim Light change from the tray and refreshes the menu so its
 /// check marks match the new state.
-fn set_rim_light(app: &AppHandle, enabled: Option<bool>, animation: Option<String>) {
-    {
-        let state = app.state::<Shared>();
-        let mut runtime = state.runtime.lock().expect("runtime lock");
-        if let Some(enabled) = enabled {
-            runtime.settings.rim_light_enabled = enabled;
-        }
-        if let Some(animation) = animation {
-            runtime.settings.rim_light_animation = animation;
-        }
-        runtime.settings.save(&config_path(app));
-    }
-    sync_tray(app);
-    emit_snapshot(app);
-}
-
 /// The short mid-song menu: what you actually reach for without leaving the
 /// music. Everything else lives in the Window.
 fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
@@ -1099,56 +1069,6 @@ fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             None::<&str>,
         )?));
     }
-
-    // Rim Light lives here as its own menu: one click to show it, one to pick
-    // its motion, without opening the window.
-    let (rim_on, rim_animation) = {
-        let state = app.state::<Shared>();
-        let runtime = state.runtime.lock().expect("runtime lock");
-        (
-            runtime.settings.rim_light_enabled,
-            runtime.settings.rim_light_animation.clone(),
-        )
-    };
-    let rim_toggle = CheckMenuItem::with_id(
-        app,
-        format!("{}toggle", tray::ITEM_RIM_PREFIX),
-        "Show rim light",
-        true,
-        rim_on,
-        None::<&str>,
-    )?;
-    let rim_breathe = CheckMenuItem::with_id(
-        app,
-        format!("{}anim:breathe", tray::ITEM_RIM_PREFIX),
-        "Breathe with the song",
-        true,
-        rim_animation == "breathe",
-        None::<&str>,
-    )?;
-    let rim_drift = CheckMenuItem::with_id(
-        app,
-        format!("{}anim:drift", tray::ITEM_RIM_PREFIX),
-        "Drift slowly",
-        true,
-        rim_animation == "drift",
-        None::<&str>,
-    )?;
-    let rim_still = CheckMenuItem::with_id(
-        app,
-        format!("{}anim:still", tray::ITEM_RIM_PREFIX),
-        "Hold still",
-        true,
-        rim_animation == "still",
-        None::<&str>,
-    )?;
-    let rim_menu = Submenu::with_items(
-        app,
-        "Rim Light",
-        true,
-        &[&rim_toggle, &rim_breathe, &rim_drift, &rim_still],
-    )?;
-    items.push(Box::new(rim_menu));
 
     items.push(Box::new(PredefinedMenuItem::separator(app)?));
     items.push(Box::new(CheckMenuItem::with_id(

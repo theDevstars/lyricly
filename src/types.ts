@@ -114,17 +114,6 @@ export interface Settings {
   lyricsPreferSynced: boolean;
   lyricsConfidenceThreshold: number;
   lyricsAutoEstimate: boolean;
-  rimLightEnabled: boolean;
-  rimLightThickness: number;
-  rimLightGlow: number;
-  rimLightAnimation: string;
-  rimLightColors: string;
-  rimLightColorA: string;
-  rimLightColorB: string;
-  /** "Mask a cutout": the glow dips around a camera notch. */
-  rimLightCutout: boolean;
-  rimLightCutoutWidth: number;
-  rimLightCutoutHeight: number;
   ciderEnabled: boolean;
   ciderHost: string;
   ciderPort: number;
