@@ -1,0 +1,16 @@
+[package]
+name = "verseglow"
+version = "0.1.0"
+description = "Lyrics as a living music wallpaper"
+authors = ["VerseGlow contributors"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

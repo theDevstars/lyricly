@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://lyrica.app/sitemap-index.xml

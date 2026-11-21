@@ -1,6 +1,9 @@
-*.log
-.DS_Store
-dist/
 node_modules/
-src-tauri/target/
-license-signing-key.txt
+dist/
+**/target/
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+*.log

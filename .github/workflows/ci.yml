@@ -1,0 +1,18 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  web:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace @verseglow/engine
+      - run: npm test --workspace @verseglow/engine
+      - run: npm run typecheck --workspace @verseglow/desktop
+      - run: npm run build --workspace @verseglow/desktop
