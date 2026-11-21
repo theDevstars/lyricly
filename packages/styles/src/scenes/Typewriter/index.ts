@@ -51,6 +51,9 @@ export const typewriter: LyricStyle = {
 
     const words = wordsOf(line);
     let size = Math.min(height * 0.1, width / 12);
+    // Measure with the size the words will actually be drawn at, or a large
+    // canvas lays them out as if they were tiny and the glyphs overlap.
+    ctx.font = `600 ${size}px "Courier New", monospace`;
     let laid = layoutWords(words, (text) => ctx.measureText(text).width, size * 0.6, width * 0.78, size);
     for (let attempt = 0; attempt < 6 && laid.rows.length > 3; attempt += 1) {
       size *= 0.84;

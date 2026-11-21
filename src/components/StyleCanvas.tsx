@@ -16,10 +16,23 @@ interface StyleCanvasProps {
   className?: string;
   /** Nothing to show: skip the work instead of painting invisible frames. */
   hidden?: boolean;
+  /**
+   * Wallpaper-hosted windows never get animation frames: Chromium's compositor
+   * stops serving rAF to a window inside Explorer's WorkerW layer, so the
+   * canvas would keep its first frame forever. Those windows animate on a timer
+   * instead, which still runs there.
+   */
+  timerDriven?: boolean;
 }
 
 /** Runs the render loop for a style on a DPR-aware canvas. */
-export function StyleCanvas({ snapshot, style, className, hidden }: StyleCanvasProps) {
+export function StyleCanvas({
+  snapshot,
+  style,
+  className,
+  hidden,
+  timerDriven,
+}: StyleCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const snapshotRef = useRef(snapshot);
   const styleRef = useRef(style);
@@ -56,9 +69,7 @@ export function StyleCanvas({ snapshot, style, className, hidden }: StyleCanvasP
     let lastDraw = 0;
     let lastReport = performance.now();
 
-    const draw = () => {
-      frame = requestAnimationFrame(draw);
-
+    const paint = () => {
       const canvas = canvasRef.current;
       if (!canvas || hiddenRef.current) return;
 
@@ -124,9 +135,29 @@ export function StyleCanvas({ snapshot, style, className, hidden }: StyleCanvasP
       ctx.restore();
     };
 
-    frame = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(frame);
-  }, []);
+    if (timerDriven) {
+      const timer = window.setInterval(paint, 33);
+      return () => window.clearInterval(timer);
+    }
+
+    const loop = () => {
+      frame = requestAnimationFrame(loop);
+      paint();
+    };
+
+    // Even a normal window can lose its frames (minimised, occluded): a timer
+    // that only paints when rAF has gone quiet keeps the canvas honest without
+    // costing anything when frames are healthy.
+    const guard = window.setInterval(() => {
+      if (performance.now() - lastDraw > 120) paint();
+    }, 33);
+
+    frame = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearInterval(guard);
+    };
+  }, [timerDriven]);
 
   return <canvas ref={canvasRef} className={className} />;
 }

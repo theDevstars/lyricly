@@ -58,6 +58,9 @@ export const handwriting: LyricStyle = {
 
     const words = wordsOf(line);
     let size = Math.min(height * 0.11, width / 11);
+    // The first layout has to measure at the size it will draw at, or a large
+    // canvas packs the words together using tiny fallback metrics.
+    ctx.font = fontOf(size, 500, FACE);
     let laid = layoutWords(words, (text) => ctx.measureText(text).width, size * 0.34, width * 0.8, size);
     for (let attempt = 0; attempt < 6 && laid.rows.length > 2; attempt += 1) {
       size *= 0.84;

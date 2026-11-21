@@ -54,6 +54,16 @@ export function sceneBlendFor(background: string | undefined): SceneBlend {
 
 export function sceneLayerFor(background: string | undefined): SceneLayer {
   return sceneBlendFor(background) === 'normal'
-    ? { blend: 'normal', inset: 0.05 }
+    ? { blend: 'normal', inset: 0.12 }
     : { blend: 'screen', inset: 0 };
+}
+
+/**
+ * The page frame in pixels, measured from the short edge so a 2560x1440
+ * monitor gets the same margin all round instead of a thin strip at the top
+ * and bottom. Never smaller than 48px, so the planet always reads as a frame.
+ */
+export function pageInsetPx(width: number, height: number, ratio: number): number {
+  if (ratio <= 0) return 0;
+  return Math.max(48, Math.round(Math.min(width, height) * ratio));
 }

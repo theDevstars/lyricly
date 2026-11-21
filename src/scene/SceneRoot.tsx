@@ -3,7 +3,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getStyle } from '@lyrica/styles';
 import { StyleCanvas } from '../components/StyleCanvas';
 import { resolvePalette } from '../lib/colors';
-import { sceneLayerFor } from '../lib/sceneBlend';
+import { pageInsetPx, sceneLayerFor } from '../lib/sceneBlend';
 import type { Snapshot } from '../types';
 
 interface SceneRootProps {
@@ -24,20 +24,36 @@ export function SceneRoot({ snapshot }: SceneRootProps) {
   // Dark stages screen away so their black drops out; light paper stages float
   // as an inset page so the ink stays readable. The planet survives both ways.
   const layer = sceneLayerFor(palette.background);
+  const [viewport, setViewport] = useState(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  }));
+  const [fps, setFps] = useState(0);
+  const [live, setLive] = useState<'frames' | 'timer'>('frames');
+  const [seen, setSeen] = useState(0);
+
+  // The page frame follows the short edge, so every monitor gets a real border
+  // of planet rather than a sliver top and bottom.
+  useEffect(() => {
+    const onResize = () =>
+      setViewport({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const [visibility, setVisibility] = useState(document.visibilityState);
+  const frames = useRef(0);
+
+  const inset = pageInsetPx(viewport.width, viewport.height, layer.inset);
   const layerStyle: CSSProperties =
-    layer.inset > 0
+    inset > 0
       ? {
           mixBlendMode: layer.blend,
-          inset: `${layer.inset * 100}%`,
+          inset: `${inset}px`,
           borderRadius: 18,
           overflow: 'hidden',
           boxShadow: '0 24px 80px rgba(0, 0, 0, 0.55)',
         }
       : { mixBlendMode: layer.blend };
-  const [fps, setFps] = useState(0);
-  const [seen, setSeen] = useState(0);
-  const [visibility, setVisibility] = useState(document.visibilityState);
-  const frames = useRef(0);
 
   // Read the display from the webview itself: a host event would race the first
   // paint, and the scene window is already sized to one monitor.
@@ -54,7 +70,11 @@ export function SceneRoot({ snapshot }: SceneRootProps) {
       frames.current += 1;
       const elapsed = performance.now() - started;
       if (elapsed > 1000) {
-        setFps(Math.round((frames.current * 1000) / elapsed));
+        const rate = Math.round((frames.current * 1000) / elapsed);
+        setFps(rate);
+        // A wallpaper window reports "visible" but its frame loop can be dead;
+        // the card says so instead of claiming a rate it does not have.
+        setLive(rate > 0 ? 'frames' : 'timer');
         frames.current = 0;
         setSeen((value) => value + 1);
         setVisibility(document.visibilityState);
@@ -75,7 +95,12 @@ export function SceneRoot({ snapshot }: SceneRootProps) {
           behind it while the bubbles and type sit on top. */}
       {snapshot.playback.title && (
         <div className="scene-canvas" style={layerStyle}>
-          <StyleCanvas snapshot={snapshot} style={style} className="style-canvas" />
+          <StyleCanvas
+            snapshot={snapshot}
+            style={style}
+            className="style-canvas"
+            timerDriven
+          />
         </div>
       )}
       <div className="scene-test-widget">
@@ -96,7 +121,7 @@ export function SceneRoot({ snapshot }: SceneRootProps) {
           <div>
             <dt>Live</dt>
             <dd>
-              {fps} fps · {seen}s · {visibility}
+              {live === 'frames' ? `${fps} fps` : 'timer 30 Hz'} · {seen}s · {visibility}
             </dd>
           </div>
           <div>

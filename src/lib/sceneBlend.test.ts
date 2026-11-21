@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { STYLES } from '@lyrica/styles';
-import { backgroundLuminance, sceneBlendFor, sceneLayerFor } from './sceneBlend';
+import { backgroundLuminance, pageInsetPx, sceneBlendFor, sceneLayerFor } from './sceneBlend';
 
 describe('sceneBlendFor', () => {
   it('screens dark stages so their black drops out', () => {
@@ -13,8 +13,17 @@ describe('sceneBlendFor', () => {
     expect(sceneBlendFor('#f6f1e4')).toBe('normal');
     expect(sceneBlendFor('#efe7d2')).toBe('normal');
     expect(sceneBlendFor('#ffffff')).toBe('normal');
-    expect(sceneLayerFor('#f6f1e4')).toEqual({ blend: 'normal', inset: 0.05 });
+    expect(sceneLayerFor('#f6f1e4')).toEqual({ blend: 'normal', inset: 0.12 });
     expect(sceneLayerFor('#050a10')).toEqual({ blend: 'screen', inset: 0 });
+  });
+
+  it('frames a paper page by the short edge, not the width', () => {
+    // 2560x1440 gets the same margin on every side, not a 72px sliver.
+    expect(pageInsetPx(2560, 1440, 0.12)).toBe(173);
+    expect(pageInsetPx(1920, 1080, 0.12)).toBe(130);
+    expect(pageInsetPx(1080, 1920, 0.12)).toBe(130);
+    expect(pageInsetPx(800, 400, 0.12)).toBe(48);
+    expect(pageInsetPx(2560, 1440, 0)).toBe(0);
   });
 
   it('flips at the midpoint', () => {
