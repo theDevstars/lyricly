@@ -2,7 +2,7 @@ import { fisheye, fisheyeVisual } from './kinetic/fisheye';
 import { ship } from './kinetic/ship';
 import { visual } from './kinetic/visual';
 import { codestyle, codestyleVisual } from './scenes/codestyle';
-import { constellation } from './scenes/constellation';
+import { constellation } from './scenes/Constellation';
 import { branches } from './scenes/branches';
 import { web } from './scenes/web';
 import { messages } from './scenes/messages';
